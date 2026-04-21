@@ -7,7 +7,9 @@ const st = (n, t) => { try { n.stop(t);  } catch {} };
 function cleanup(nodes, ms) {
   const fn = () => nodes.forEach(n => { try { n.disconnect(); } catch {} });
   setTimeout(fn, ms + 80);
-  if (nodes[0]) nodes[0].onended = fn;
+  // Only AudioScheduledSourceNode (oscillators, buffer sources) have onended
+  const src = nodes.find(n => typeof n.onended !== 'undefined');
+  if (src) src.onended = fn;
 }
 function track(ref, ms) {
   ref.current += 1;

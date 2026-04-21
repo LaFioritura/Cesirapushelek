@@ -18,6 +18,8 @@ export function getVoiceNotes({ baseNote, lane = 'synth', modeName, polySynth, b
 function cleanup(nodes, ms) {
   const fn = () => nodes.forEach(n => { try { n.disconnect(); } catch {} });
   setTimeout(fn, ms + 80);
+  const src = nodes.find(n => typeof n.onended !== 'undefined');
+  if (src) src.onended = fn;
 }
 function releaseNode(ref, ms) {
   ref.current += 1;

@@ -7,7 +7,9 @@ function mkNoiseBuf(ctx, dur=0.04) {
 }
 function cleanup(nodes, ms) {
   const fn=()=>nodes.forEach(n=>{try{n.disconnect();}catch{}});
-  setTimeout(fn,ms+80); if(nodes[0]) nodes[0].onended=fn;
+  setTimeout(fn,ms+80);
+  const src=nodes.find(n=>typeof n.onended!=='undefined');
+  if(src) src.onended=fn;
 }
 function releaseNode(ref,ms) { ref.current+=1; setTimeout(()=>{ref.current=Math.max(0,ref.current-1);},ms+80); }
 

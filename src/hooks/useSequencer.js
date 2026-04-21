@@ -112,6 +112,7 @@ export function useSequencer({
     const g       = genreRef.current;
     const stepSec = () => 60 / bpmRef.current / 4;
     const getLG   = getLaneGain.current;
+    if (!getLG) return; // audio not yet initialized
 
     // Swing: delay odd 16th-note steps by a fraction of the step duration.
     const swingOffset = (step % 2 === 1)
