@@ -80,12 +80,17 @@ export function usePatterns({ genre, modeName, arpeMode, setCurrentSectionName }
     stepRef.current = 0;
   }, [pushUndo]);
 
+  // lastBass tracks the final bass note of each section for voice continuity.
+  const lastBassRef = useRef('C2');
+
   // ── Section generation ─────────────────────────────────────────────────────
 
   const regenerateSection = useCallback((sectionName) => {
     pushUndo();
     const progPool   = CHORD_PROGS[modeName] || CHORD_PROGS.minor;
-    const result     = buildSection(genre, sectionName, modeName, progPool[0], arpeMode, 'C2');
+    const progression = pick(progPool);                    // random each time
+    const result     = buildSection(genre, sectionName, modeName, progression, arpeMode, lastBassRef.current);
+    lastBassRef.current = result.lastBass || lastBassRef.current;
     setPatterns(result.patterns);
     setBassLine(result.bassLine);
     setSynthLine(result.synthLine);

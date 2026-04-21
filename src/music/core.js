@@ -336,66 +336,78 @@ export function velCurve(type, i, total, pw) {
 }
 
 // ─── MELODIC PHRASE BUILDER ───────────────────────────────────────────────────
-export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode, lenBias) {
-  const line = mkNotes(pool[0]);
+export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode, lenBias, startNote) {
+  const line    = mkNotes(pool[0]);
   const lengths = Array(steps).fill(1);
   const chordLen = Math.max(1, Math.floor(steps / 4));
 
-  const motif = [];
-  const motifLen = 4;
-  const firstChord = chordProgression[0];
-  const firstPool = chordNotes(firstChord, pool);
-  let lastNote = firstPool[0];
+  // Build a short motif from the first chord, starting from startNote
+  // so consecutive sections have melodic continuity.
+  const firstChord  = chordProgression[0];
+  const firstPool   = chordNotes(firstChord, pool);
+  const startIdx    = startNote ? Math.max(0, pool.indexOf(startNote)) : 0;
+  let   lastNote    = pool[clamp(startIdx, 0, pool.length - 1)];
 
-  for (let m = 0; m < motifLen; m += 1) {
+  const motifLen = 4;
+  const motif    = [];
+
+  for (let m = 0; m < motifLen; m++) {
     const r = rnd();
-    if (r < 0.15) {
-      motif.push(null);
-    } else if (r < 0.35) {
+    if (r < 0.12) {
+      // Rest placeholder — will use previous note
+      motif.push(lastNote);
+    } else if (r < 0.28) {
+      // Repeat
       motif.push(lastNote);
     } else {
-      const near = firstPool.reduce((best, n) => (
-        Math.abs(pool.indexOf(n) - pool.indexOf(lastNote)) <
-        Math.abs(pool.indexOf(best) - pool.indexOf(lastNote))
-          ? n
-          : best
-      ), firstPool[0]);
-      lastNote = near;
-      motif.push(near);
+      // Move to nearest chord tone via arp pattern
+      const arpNote = arp(firstPool, arpeMode, m);
+      const nearest = pool.reduce((best, n) =>
+        Math.abs(pool.indexOf(n) - pool.indexOf(arpNote)) <
+        Math.abs(pool.indexOf(best) - pool.indexOf(arpNote)) ? n : best
+      , firstPool[0] || pool[0]);
+      lastNote = nearest;
+      motif.push(nearest);
     }
   }
 
-  for (let i = 0; i < steps; i += 1) {
-    const ci = Math.floor(i / chordLen) % chordProgression.length;
+  for (let i = 0; i < steps; i++) {
+    const ci    = Math.floor(i / chordLen) % chordProgression.length;
     const chord = chordProgression[ci];
-    const cn = chordNotes(chord, pool);
-    const motifPos = i % motifLen;
-    const motifNote = motif[motifPos];
+    const cn    = chordNotes(chord, pool);
 
-    if (motifNote === null) {
-      line[i] = pool[0];
-    } else if (rnd() < 0.72) {
-      const transposed = cn.reduce((best, n) => (
+    // Apply arp mode to the chord tones for this step.
+    const arpedNote = arp(cn, arpeMode, i);
+
+    const motifNote = motif[i % motifLen];
+    const useMotif  = rnd() < 0.68;
+
+    if (useMotif) {
+      // Transpose the motif note to fit the current chord via voice leading.
+      line[i] = cn.reduce((best, n) =>
         Math.abs(pool.indexOf(n) - pool.indexOf(motifNote)) <
-        Math.abs(pool.indexOf(best) - pool.indexOf(motifNote))
-          ? n
-          : best
-      ), cn[0]);
-      line[i] = transposed;
+        Math.abs(pool.indexOf(best) - pool.indexOf(motifNote)) ? n : best
+      , arpedNote);
+    } else if (rnd() < chaos) {
+      // Chaos: free note from pool
+      line[i] = pick(pool);
     } else {
-      line[i] = rnd() < chaos ? pick(pool) : voiceLead(line[Math.max(0, i - 1)], cn);
+      // Voice lead from previous
+      line[i] = voiceLead(line[Math.max(0, i - 1)], cn);
     }
 
+    // Note length
     const r = rnd();
-    if (r < 0.45) lengths[i] = lenBias;
-    else if (r < 0.65) lengths[i] = lenBias * 2;
-    else if (r < 0.82) lengths[i] = Math.max(0.5, lenBias * 0.5);
-    else lengths[i] = lenBias * 3;
-
-    lengths[i] = Math.min(lengths[i], 8);
+    let l = lenBias;
+    if (r < 0.45)      l = lenBias;
+    else if (r < 0.65) l = lenBias * 2;
+    else if (r < 0.82) l = Math.max(0.5, lenBias * 0.5);
+    else               l = lenBias * 3;
+    lengths[i] = Math.min(l, 8);
   }
 
-  for (let i = steps; i < MAX_STEPS; i += 1) {
+  // Tile the pattern to fill MAX_STEPS.
+  for (let i = steps; i < MAX_STEPS; i++) {
     line[i] = line[i % Math.max(1, steps)];
   }
 
@@ -403,23 +415,18 @@ export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode,
 }
 
 export function buildSection(genre, sectionName, modeName, progression, arpeMode, prevBass) {
-  void prevBass;
-
-  const sec = SECTIONS[sectionName] || SECTIONS.groove;
-  const gd = GENRES[genre];
+  const sec  = SECTIONS[sectionName] || SECTIONS.groove;
+  const gd   = GENRES[genre];
   const grooveName =
-    gd.density > 0.65 && gd.chaos > 0.4
-      ? 'bunker'
-      : gd.chaos > 0.6
-        ? 'broken'
-        : gd.density < 0.4
-          ? 'float'
-          : 'steady';
+    gd.density > 0.65 && gd.chaos > 0.4 ? 'bunker'
+    : gd.chaos > 0.6                     ? 'broken'
+    : gd.density < 0.4                   ? 'float'
+    :                                      'steady';
 
   const groove = GROOVE_MAPS[grooveName];
-  const mode = MODES[modeName] || MODES.minor;
-  const bp = mode.b;
-  const sp = mode.s;
+  const mode   = MODES[modeName] || MODES.minor;
+  const bp     = mode.b;
+  const sp     = mode.s;
 
   const laneLen = { kick: 16, snare: 16, hat: 32, bass: 32, synth: 32 };
   if (genre === 'dnb') {
@@ -450,21 +457,11 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
     sec.lb * (sectionName === 'break' ? 3 : sectionName === 'ambient' ? 4 : 1.2);
 
   const { line: bassLine, lengths: bassLengths } = buildMelodicLine(
-    bp,
-    progression,
-    laneLen.bass,
-    chaos,
-    arpeMode,
-    bassLb,
+    bp, progression, laneLen.bass, chaos, arpeMode, bassLb, prevBass,
   );
 
   const { line: synthLine, lengths: synthLengths } = buildMelodicLine(
-    sp,
-    progression,
-    laneLen.synth,
-    chaos * 0.7,
-    arpeMode,
-    synthLb,
+    sp, progression, laneLen.synth, chaos * 0.7, arpeMode, synthLb, null,
   );
 
   const p = {
