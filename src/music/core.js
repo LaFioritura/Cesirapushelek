@@ -392,7 +392,7 @@ export function buildMelodicLine(
   return { line, lengths, lastNote };
 }
 
-export function buildSection(genre, sectionName, modeName, progression, arpeMode, prevBass) {
+export function buildSection(genre, sectionName, modeName, progression, arpeMode, prevBass, sectionIndex = 0) {
   const sec  = SECTIONS[sectionName] || SECTIONS.groove;
   const gd   = GENRES[genre];
   const grooveName =
@@ -403,12 +403,29 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
 
   const groove  = GROOVE_MAPS[grooveName];
   const mode    = MODES[modeName] || MODES.minor;
-  const bp      = mode.b;
-  const sp      = mode.s;
   const density = gd.density;
   const chaos   = gd.chaos;
-  // noiseMix derived from genre chaos — used for ghost note probability
   const noiseMix = clamp(chaos * 0.5 + density * 0.2, 0.05, 0.6);
+
+  // ── Tonal transposition between sections ────────────────────────────────────
+  // Drop sections shift up 3 semitones (minor third) for intensity.
+  // Tension shifts up 2 (whole step). Outro shifts down 2 to resolve.
+  // Other sections alternate +0 / +5 semitones every other occurrence.
+  const sectionTranspose = {
+    drop:    3,
+    tension: 2,
+    outro:   -2,
+    build:   sectionIndex % 2 === 0 ? 0 : 5,
+    groove:  sectionIndex % 3 === 0 ? 0 : sectionIndex % 3 === 1 ? 3 : 7,
+    break:   0,
+    intro:   0,
+    fill:    0,
+  };
+  const semitones = sectionTranspose[sectionName] ?? 0;
+
+  // Transpose pool if needed
+  const bp = semitones === 0 ? mode.b : mode.b.map(n => transposeNote(n, semitones));
+  const sp = semitones === 0 ? mode.s : mode.s.map(n => transposeNote(n, semitones));
 
   const laneLen = { kick: 16, snare: 16, hat: 32, bass: 32, synth: 32 };
   if (genre === 'dnb') {
@@ -605,37 +622,75 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
     }
   }
 
-  // ── Hat: euclidean + genre ─────────────────────────────────────────────────
+  // ── Hat: euclidean + genre + roll + build crescendo ────────────────────────
   const ll_h = laneLen.hat;
   const hatP = gd.hatPattern;
 
-  // Choose euclidean density based on genre + section
-  const hatHits = hatP === '16th' ? ll_h
-    : hatP === 'offbeat'   ? Math.floor(ll_h / 2)
-    : hatP === 'breakbeat' ? Math.floor(ll_h * (0.4 + chaos * 0.2))
-    : hatP === 'noise'     ? Math.floor(ll_h * (0.5 + chaos * 0.2))
-    : hatP === 'sparse'    ? Math.floor(ll_h * 0.18)
-    : Math.floor(ll_h * (0.35 + density * 0.25));
+  // Base hit count — euclidean distribution
+  const baseHits = hatP === '16th'      ? ll_h
+    : hatP === 'offbeat'                ? Math.floor(ll_h / 2)
+    : hatP === 'breakbeat'              ? Math.floor(ll_h * (0.42 + chaos * 0.18))
+    : hatP === 'noise'                  ? Math.floor(ll_h * (0.50 + chaos * 0.20))
+    : hatP === 'sparse'                 ? Math.floor(ll_h * 0.16)
+    :                                    Math.floor(ll_h * (0.34 + density * 0.22));
 
-  const hatEuc = euclidean(Math.round(hatHits), ll_h);
+  const hatEuc = euclidean(Math.round(baseHits), ll_h);
+
+  // Build crescendo: density multiplier ramps from 0.5 → 1.0 across 4 bars
+  const isBuild = sectionName === 'build';
+  const isTension = sectionName === 'tension';
 
   for (let i = 0; i < ll_h; i++) {
-    const pos = i % 16;
-    const pb  = Math.floor(i / 8) % 4;
-    const pw  = phraseW[pb];
-    let hit   = hatP === 'offbeat' ? (i % 2 === 1) : hatEuc[i];
+    const pos    = i % 16;
+    const bar    = Math.floor(i / 16); // which bar within the lane
+    const totalBars = Math.floor(ll_h / 16);
+    const pb     = Math.floor(i / 8) % 4;
+    const pw     = phraseW[pb];
 
-    // Open hat: on the 8th 16th note of each bar occasionally
-    const isOpen = hit && (pos === 8 || pos === 14) && rnd() < 0.22 + chaos * 0.12;
+    // Build crescendo: probability scales with progress through the section
+    const buildRamp = isBuild
+      ? clamp(0.4 + (bar / Math.max(1, totalBars - 1)) * 0.6, 0.4, 1.0)
+      : 1.0;
 
-    // Ghost hat: add quiet hats on off-positions
-    const isGhost = !hit && (pos % 4 !== 0) && rnd() < 0.06 + noiseMix * 0.06;
+    let hit = hatP === 'offbeat' ? (i % 2 === 1) : hatEuc[i];
+
+    // In build sections, add hats that weren't there if ramp is high
+    if (isBuild && !hit && bar >= 2 && rnd() < (buildRamp - 0.4) * 0.8) hit = true;
+
+    // Tension: dense hats with rolls on last bar
+    if (isTension && !hit && pos % 2 === 1 && rnd() < 0.35 + chaos * 0.2) hit = true;
+
+    // Hat roll: in the last bar of any section, add rapid hats toward the end
+    // This simulates the "rush" before a section change
+    const isLastBar = bar === totalBars - 1;
+    const rollZone  = pos >= 10; // last 6 steps of bar
+    if (isLastBar && rollZone && !hit) {
+      // Probability increases toward end of bar
+      const rollProb = 0.15 + ((pos - 10) / 5) * (0.55 + chaos * 0.25);
+      if (rnd() < rollProb * buildRamp) hit = true;
+    }
+
+    // Open hat: on step 8 of each bar (& sometimes 14) with velocity accent
+    const isOpen = hit && (
+      (pos === 8 && rnd() < 0.30 + density * 0.15) ||
+      (pos === 14 && rnd() < 0.18 + chaos * 0.12)
+    );
+
+    // Ghost hat: quiet hits filling gaps
+    const isGhost = !hit && (pos % 4 !== 0) && rnd() < 0.05 + noiseMix * 0.05;
 
     if (hit || isGhost) {
       p.hat[i].on = true;
-      const vel = isGhost
-        ? clamp(0.18 + rnd() * 0.10, 0.15, 0.28)
-        : clamp(velCurve(sec.vel, i, ll_h, pw) * sec.hM, 0.30, 1);
+      // Velocity: ghosts are quiet, accents on beat 1 of each bar are loud,
+      // roll notes have a slight crescendo within the roll
+      let vel;
+      if (isGhost) {
+        vel = clamp(0.15 + rnd() * 0.10, 0.12, 0.26);
+      } else if (isLastBar && rollZone) {
+        vel = clamp(0.45 + ((pos - 10) / 5) * 0.35, 0.40, 0.85) * accent;
+      } else {
+        vel = clamp(velCurve(sec.vel, i, ll_h, pw) * sec.hM * buildRamp, 0.28, 1) * accent;
+      }
       p.hat[i].v = vel;
       p.hat[i].p = isOpen ? 1 : clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
     }

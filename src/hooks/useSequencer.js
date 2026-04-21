@@ -114,17 +114,16 @@ export function useSequencer({
     const getLG   = getLaneGain.current;
     if (!getLG) return; // audio not yet initialized
 
-    // Swing: delay odd 16th-note steps by a fraction of the step duration.
-    const swingOffset = (step % 2 === 1)
-      ? swingRef.current * stepSec() * 2
-      : 0;
+    // Swing: odd 16th-note steps delayed by a fraction of the step duration.
+    // Hat gets full swing, kick and bass get reduced swing (more locked to grid).
+    const fullSwing    = swingRef.current * stepSec() * 2;
+    const isOddStep    = step % 2 === 1;
 
-    // Humanize: tiny random timing nudge (±humanize seconds).
-    const humanizeOffset = humanizeRef.current > 0
-      ? (Math.random() * 2 - 1) * humanizeRef.current
-      : 0;
-
-    const t = time + swingOffset + humanizeOffset;
+    const tHat   = time + (isOddStep ? fullSwing         : 0) + (humanizeRef.current > 0 ? (Math.random()*2-1)*humanizeRef.current : 0);
+    const tKick  = time + (isOddStep ? fullSwing * 0.35  : 0) + (humanizeRef.current > 0 ? (Math.random()*2-1)*humanizeRef.current*0.5 : 0);
+    const tSnare = time + (isOddStep ? fullSwing * 0.55  : 0) + (humanizeRef.current > 0 ? (Math.random()*2-1)*humanizeRef.current*0.7 : 0);
+    const tBass  = time + (isOddStep ? fullSwing * 0.40  : 0) + (humanizeRef.current > 0 ? (Math.random()*2-1)*humanizeRef.current*0.6 : 0);
+    const tSynth = time + (isOddStep ? fullSwing * 0.70  : 0) + (humanizeRef.current > 0 ? (Math.random()*2-1)*humanizeRef.current : 0);
 
     // grooveAccent multiplier for each lane at this step.
     const groove = (lane) =>
@@ -133,32 +132,32 @@ export function useSequencer({
     const kickStep = step % (ll.kick || 16);
     const kickCell = p.kick[kickStep];
     if (kickCell?.on) {
-      playKick({ audioRef, getLaneGain: getLG, genre: g, drumDecay: drumDecayRef.current, noiseMix: noiseMixRef.current, bassSubAmt: bassSubAmtRef.current, activeNodesRef, flashLane, accent: clamp((kickCell.v ?? 1) * groove('kick'), 0, 1), time: t });
+      playKick({ audioRef, getLaneGain: getLG, genre: g, drumDecay: drumDecayRef.current, noiseMix: noiseMixRef.current, bassSubAmt: bassSubAmtRef.current, activeNodesRef, flashLane, accent: clamp((kickCell.v ?? 1) * groove('kick'), 0, 1), time: tKick });
     }
 
     const snareStep = step % (ll.snare || 16);
     const snareCell = p.snare[snareStep];
     if (snareCell?.on) {
-      playSnare({ audioRef, getLaneGain: getLG, genre: g, drumDecay: drumDecayRef.current, noiseMix: noiseMixRef.current, activeNodesRef, flashLane, accent: clamp((snareCell.v ?? 1) * groove('snare'), 0, 1), time: t });
+      playSnare({ audioRef, getLaneGain: getLG, genre: g, drumDecay: drumDecayRef.current, noiseMix: noiseMixRef.current, activeNodesRef, flashLane, accent: clamp((snareCell.v ?? 1) * groove('snare'), 0, 1), time: tSnare });
     }
 
     const hatStep = step % (ll.hat || 32);
     const hatCell = p.hat[hatStep];
     if (hatCell?.on) {
-      const open = (hatCell.l ?? 1) > 1.25 || (hatStep % 8 === 7 && (hatCell.v ?? 1) > 0.7);
-      playHat({ audioRef, getLaneGain: getLG, genre: g, noiseMix: noiseMixRef.current, activeNodesRef, flashLane, accent: clamp((hatCell.v ?? 1) * groove('hat'), 0, 1), open, time: t });
+      const open = (hatCell.l ?? 1) > 1.25 || (hatCell.p ?? 0) >= 1 || (hatStep % 8 === 7 && (hatCell.v ?? 1) > 0.7);
+      playHat({ audioRef, getLaneGain: getLG, genre: g, noiseMix: noiseMixRef.current, activeNodesRef, flashLane, accent: clamp((hatCell.v ?? 1) * groove('hat'), 0, 1), open, time: tHat });
     }
 
     const bassStep = step % (ll.bass || 32);
     const bassCell = p.bass[bassStep];
     if (bassCell?.on) {
-      playBass({ audioRef, getLaneGain: getLG, genre: g, note: bassLineRef.current[bassStep], accent: clamp((bassCell.v ?? 1) * groove('bass'), 0, 1), time: t, lenSteps: bassCell.l ?? 1, stepSec, bassFilter: bassFilterRef.current, tone: toneRef.current, compress: compressRef.current, bassSubAmt: bassSubAmtRef.current, fmIdx: fmIdxRef.current, activeNodesRef, flashLane, modeName: modeNameRef.current, bassStack: bassStackRef.current, setActiveNotes });
+      playBass({ audioRef, getLaneGain: getLG, genre: g, note: bassLineRef.current[bassStep], accent: clamp((bassCell.v ?? 1) * groove('bass'), 0, 1), time: tBass, lenSteps: bassCell.l ?? 1, stepSec, bassFilter: bassFilterRef.current, tone: toneRef.current, compress: compressRef.current, bassSubAmt: bassSubAmtRef.current, fmIdx: fmIdxRef.current, activeNodesRef, flashLane, modeName: modeNameRef.current, bassStack: bassStackRef.current, setActiveNotes });
     }
 
     const synthStep = step % (ll.synth || 32);
     const synthCell = p.synth[synthStep];
     if (synthCell?.on) {
-      playSynth({ audioRef, getLaneGain: getLG, genre: g, note: synthLineRef.current[synthStep], accent: clamp((synthCell.v ?? 1) * groove('synth'), 0, 1), time: t, lenSteps: synthCell.l ?? 1, stepSec, synthFilter: synthFilterRef.current, tone: toneRef.current, compress: compressRef.current, space: spaceRef.current, activeNodesRef, flashLane, modeName: modeNameRef.current, polySynth: polySynthRef.current, setActiveNotes });
+      playSynth({ audioRef, getLaneGain: getLG, genre: g, note: synthLineRef.current[synthStep], accent: clamp((synthCell.v ?? 1) * groove('synth'), 0, 1), time: tSynth, lenSteps: synthCell.l ?? 1, stepSec, synthFilter: synthFilterRef.current, tone: toneRef.current, compress: compressRef.current, space: spaceRef.current, activeNodesRef, flashLane, modeName: modeNameRef.current, polySynth: polySynthRef.current, setActiveNotes });
     }
   }, [audioRef, getLaneGain, activeNodesRef, flashLane, setActiveNotes]);
 

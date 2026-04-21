@@ -276,29 +276,134 @@ export function playClap({ audioRef, getLaneGain, noiseMix, activeNodesRef, flas
 }
 
 // ── HIHAT ─────────────────────────────────────────────────────────────────────
-export function playHat({ audioRef, getLaneGain, genre, noiseMix, activeNodesRef, flashLane, accent=1, open=false, time }) {
+//
+// Three timbric models driven by genre:
+//   'metallic'  — TR-909 multi-osc model, tight, bright (techno, acid, industrial)
+//   'airy'      — softer noise + filtered oscillators, warmer (house, cinematic, ambient)
+//   'crispy'    — very short, high-filtered, transient-heavy (dnb, experimental)
+//
+function hatModel(genre) {
+  const map = {
+    techno:'metallic', house:'airy', ambient:'airy',
+    dnb:'crispy', acid:'metallic', industrial:'metallic',
+    experimental:'crispy', cinematic:'airy',
+  };
+  return map[genre] || 'metallic';
+}
+
+export function playHat({ audioRef, getLaneGain, genre, noiseMix,
+  activeNodesRef, flashLane, accent = 1, open = false, time }) {
   if (!guard(activeNodesRef)) return;
-  const a=audioRef.current; if(!a) return;
-  const out=getLaneGain('hat'); if(!out) return;
-  const gd=GENRES[genre]||GENRES.techno; const nColor=gd.noiseColor||'white';
-  const dur=open?0.18+noiseMix*0.12:0.04+noiseMix*0.02;
-  const freqs=[205.3,369.9,437.0,523.0,612.3,785.1];
-  const oscG=a.ctx.createGain(); oscG.gain.value=0.07;
-  const oscNodes=freqs.map(f=>{
-    const o=a.ctx.createOscillator(); o.type='square'; o.frequency.value=f*(open?1.0:1.02);
-    o.connect(oscG); ss(o,time); st(o,time+dur+0.01); return o;
-  });
-  const noise=a.ctx.createBufferSource(); noise.buffer=noiseBuffer(a.ctx,dur+0.04,1,nColor);
-  const hp=a.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=open?5000:6500;
-  const bp=a.ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=open?8500:10000; bp.Q.value=open?0.8:1.1;
-  const nG=a.ctx.createGain();
-  nG.gain.setValueAtTime(0.001,time); nG.gain.linearRampToValueAtTime((0.25+noiseMix*0.20)*accent,time+0.001); nG.gain.exponentialRampToValueAtTime(0.001,time+dur);
-  const sh=a.ctx.createWaveShaper(); driveCurve(sh,clamp(0.02+noiseMix*0.06,0.01,0.15));
-  const mix=a.ctx.createGain(); mix.gain.value=open?0.52:0.40;
-  noise.connect(hp); hp.connect(bp); bp.connect(nG); nG.connect(sh); sh.connect(mix); oscG.connect(mix); mix.connect(out);
-  ss(noise,time); st(noise,time+dur+0.02);
-  const ms=(dur+0.1)*1000; const all=[...oscNodes,noise,oscG,hp,bp,nG,sh,mix];
-  setTimeout(()=>all.forEach(n=>{try{n.disconnect();}catch{}}),ms+80); track(activeNodesRef,ms); flashLane?.('hat',open?0.88:0.62);
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('hat'); if (!out) return;
+
+  const gd    = GENRES[genre] || GENRES.techno;
+  const nColor= gd.noiseColor || 'white';
+  const model = hatModel(genre);
+
+  // ── metallic (TR-909 style) ────────────────────────────────────────────────
+  if (model === 'metallic') {
+    const dur = open ? 0.22 + noiseMix * 0.18 : 0.038 + noiseMix * 0.015;
+    // Six detuned square oscillators — the 909 secret
+    const freqs = [205.3, 369.9, 437.0, 523.0, 612.3, 785.1];
+    const oscG  = a.ctx.createGain();
+    // Open hat oscillators decay slower
+    const oscEnv = a.ctx.createGain();
+    oscEnv.gain.setValueAtTime(0.10 * accent, time);
+    oscEnv.gain.exponentialRampToValueAtTime(0.001, time + (open ? dur * 0.9 : dur * 0.6));
+    const oscNodes = freqs.map(f => {
+      const o = a.ctx.createOscillator(); o.type = 'square';
+      o.frequency.value = f * (open ? 1.0 : 1.018); // closed slightly sharper
+      o.connect(oscG); ss(o, time); st(o, time + dur + 0.015); return o;
+    });
+    oscG.connect(oscEnv);
+
+    // Noise layer
+    const noise = a.ctx.createBufferSource();
+    noise.buffer = noiseBuffer(a.ctx, dur + 0.05, 1, nColor);
+    const hp = a.ctx.createBiquadFilter(); hp.type = 'highpass';
+    hp.frequency.value = open ? 4800 : 6800;
+    hp.Q.value = 0.5;
+    const bp = a.ctx.createBiquadFilter(); bp.type = 'bandpass';
+    bp.frequency.value = open ? 8200 : 10200;
+    bp.Q.value = open ? 0.7 : 1.2;
+    const nG = a.ctx.createGain();
+    nG.gain.setValueAtTime(0.001, time);
+    nG.gain.linearRampToValueAtTime((0.28 + noiseMix * 0.22) * accent, time + 0.001);
+    nG.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+    // Mild saturation
+    const sh = a.ctx.createWaveShaper(); driveCurve(sh, clamp(0.02 + noiseMix * 0.06, 0.01, 0.14));
+
+    // VCA
+    const mix = a.ctx.createGain(); mix.gain.value = open ? 0.56 : 0.42;
+
+    noise.connect(hp); hp.connect(bp); bp.connect(nG); nG.connect(sh);
+    sh.connect(mix); oscEnv.connect(mix); mix.connect(out);
+
+    ss(noise, time); st(noise, time + dur + 0.02);
+    const ms = (dur + 0.12) * 1000;
+    const all = [...oscNodes, noise, oscG, oscEnv, hp, bp, nG, sh, mix];
+    setTimeout(() => all.forEach(n => { try { n.disconnect(); } catch {} }), ms + 80);
+    track(activeNodesRef, ms); flashLane?.('hat', open ? 0.9 : 0.65); return;
+  }
+
+  // ── airy (house / cinematic) ───────────────────────────────────────────────
+  if (model === 'airy') {
+    const dur = open ? 0.30 + noiseMix * 0.20 : 0.048 + noiseMix * 0.018;
+    // Softer oscillator pair (triangle, not square)
+    const freqs = [280.0, 420.0, 560.0, 700.0];
+    const oscG  = a.ctx.createGain(); oscG.gain.value = 0.055;
+    const oscNodes = freqs.map(f => {
+      const o = a.ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.value = f;
+      o.connect(oscG); ss(o, time); st(o, time + dur + 0.01); return o;
+    });
+
+    const noise = a.ctx.createBufferSource();
+    noise.buffer = noiseBuffer(a.ctx, dur + 0.06, 1, 'pink'); // pink noise warmer
+    const hp = a.ctx.createBiquadFilter(); hp.type = 'highpass';
+    hp.frequency.value = open ? 4200 : 5800;
+    const lp = a.ctx.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.value = open ? 12000 : 14000; // retain warmth
+
+    const nG = a.ctx.createGain();
+    nG.gain.setValueAtTime(0.001, time);
+    nG.gain.linearRampToValueAtTime((0.22 + noiseMix * 0.16) * accent, time + 0.002);
+    nG.gain.exponentialRampToValueAtTime(0.001, time + dur);
+
+    const mix = a.ctx.createGain(); mix.gain.value = open ? 0.58 : 0.44;
+    noise.connect(hp); hp.connect(lp); lp.connect(nG); nG.connect(mix);
+    oscG.connect(mix); mix.connect(out);
+
+    ss(noise, time); st(noise, time + dur + 0.02);
+    const ms = (dur + 0.12) * 1000;
+    const all = [...oscNodes, noise, oscG, hp, lp, nG, mix];
+    setTimeout(() => all.forEach(n => { try { n.disconnect(); } catch {} }), ms + 80);
+    track(activeNodesRef, ms); flashLane?.('hat', open ? 0.85 : 0.58); return;
+  }
+
+  // ── crispy (dnb / experimental) ───────────────────────────────────────────
+  // Very short, extremely high-passed, transient-only — almost no sustain.
+  {
+    const dur = open ? 0.14 + noiseMix * 0.10 : 0.022 + noiseMix * 0.008;
+    const noise = a.ctx.createBufferSource();
+    noise.buffer = noiseBuffer(a.ctx, dur + 0.03, 1, 'white');
+    const hp1 = a.ctx.createBiquadFilter(); hp1.type = 'highpass'; hp1.frequency.value = 8000;
+    const hp2 = a.ctx.createBiquadFilter(); hp2.type = 'highpass'; hp2.frequency.value = 9500;
+    const sh  = a.ctx.createWaveShaper(); driveCurve(sh, 0.08 + noiseMix * 0.10);
+    const nG  = a.ctx.createGain();
+    nG.gain.setValueAtTime(0.001, time);
+    nG.gain.linearRampToValueAtTime((0.32 + noiseMix * 0.18) * accent, time + 0.001);
+    nG.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    const mix = a.ctx.createGain(); mix.gain.value = open ? 0.48 : 0.38;
+    noise.connect(hp1); hp1.connect(hp2); hp2.connect(sh); sh.connect(nG); nG.connect(mix); mix.connect(out);
+    ss(noise, time); st(noise, time + dur + 0.01);
+    const ms = (dur + 0.06) * 1000;
+    const all = [noise, hp1, hp2, sh, nG, mix];
+    setTimeout(() => all.forEach(n => { try { n.disconnect(); } catch {} }), ms + 80);
+    track(activeNodesRef, ms); flashLane?.('hat', open ? 0.82 : 0.55);
+  }
 }
 
 // ── TOM ───────────────────────────────────────────────────────────────────────
