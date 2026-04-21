@@ -42,7 +42,7 @@ export const GENRES = {
     density: 0.65,
     chaos: 0.28,
     bassMode: 'sub',
-    synthMode: 'organ',
+    synthMode: 'rhodes',
     fxProfile: { drive: 0.1, space: 0.55, tone: 0.8 },
     hatPattern: 'offbeat',
     description: 'Warm soulful groove',
@@ -132,7 +132,7 @@ export const GENRES = {
     density: 0.45,
     chaos: 0.88,
     bassMode: 'wet',
-    synthMode: 'strings',
+    synthMode: 'supersaw',
     fxProfile: { drive: 0.2, space: 0.7, tone: 0.6 },
     hatPattern: 'random',
     description: 'Unpredictable textural',
@@ -150,7 +150,7 @@ export const GENRES = {
     density: 0.38,
     chaos: 0.35,
     bassMode: 'drone',
-    synthMode: 'strings',
+    synthMode: 'ether',
     fxProfile: { drive: 0.05, space: 0.85, tone: 0.85 },
     hatPattern: 'sparse',
     description: 'Dramatic cinematic score',
@@ -336,82 +336,110 @@ export function velCurve(type, i, total, pw) {
 }
 
 // ─── MELODIC PHRASE BUILDER ───────────────────────────────────────────────────
+//
+// Builds a line of `steps` notes that:
+//   - derives a 4-note motif from the first chord, starting from startNote
+//   - applies arp() to chord tones at each step for the chosen arpeMode
+//   - uses voice leading (±1–2 steps in scale) for smooth motion
+//   - introduces passing tones via chaos probability
+//   - varies note lengths (note: short, long, held) driven by section lb
+//   - tiles the result to fill MAX_STEPS
+//
 export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode, lenBias, startNote) {
-  const line    = mkNotes(pool[0]);
-  const lengths = Array(steps).fill(1);
-  const chordLen = Math.max(1, Math.floor(steps / 4));
+  const line     = mkNotes(pool[0]);
+  const lengths  = Array(steps).fill(1);
+  const chordLen = Math.max(1, Math.floor(steps / chordProgression.length));
 
-  // Build a short motif from the first chord, starting from startNote
-  // so consecutive sections have melodic continuity.
-  const firstChord  = chordProgression[0];
-  const firstPool   = chordNotes(firstChord, pool);
-  const startIdx    = startNote ? Math.max(0, pool.indexOf(startNote)) : 0;
-  let   lastNote    = pool[clamp(startIdx, 0, pool.length - 1)];
+  // Build motif anchored to startNote
+  const firstPool = chordNotes(chordProgression[0], pool);
+  const startIdx  = startNote ? Math.max(0, pool.indexOf(startNote)) : 0;
+  let   prev      = pool[clamp(startIdx, 0, pool.length - 1)];
 
-  const motifLen = 4;
-  const motif    = [];
+  const MOTIF_LEN = 4;
+  const motif     = [];
 
-  for (let m = 0; m < motifLen; m++) {
+  for (let m = 0; m < MOTIF_LEN; m++) {
     const r = rnd();
-    if (r < 0.12) {
-      // Rest placeholder — will use previous note
-      motif.push(lastNote);
-    } else if (r < 0.28) {
+    if (r < 0.10) {
+      // Rest — repeat previous (held)
+      motif.push(prev);
+    } else if (r < 0.25) {
       // Repeat
-      motif.push(lastNote);
+      motif.push(prev);
     } else {
-      // Move to nearest chord tone via arp pattern
+      // Move to nearest chord tone using arp mode
       const arpNote = arp(firstPool, arpeMode, m);
       const nearest = pool.reduce((best, n) =>
         Math.abs(pool.indexOf(n) - pool.indexOf(arpNote)) <
         Math.abs(pool.indexOf(best) - pool.indexOf(arpNote)) ? n : best
       , firstPool[0] || pool[0]);
-      lastNote = nearest;
+      prev = nearest;
       motif.push(nearest);
     }
   }
+
+  let lastNote = motif[0] || pool[0];
 
   for (let i = 0; i < steps; i++) {
     const ci    = Math.floor(i / chordLen) % chordProgression.length;
     const chord = chordProgression[ci];
     const cn    = chordNotes(chord, pool);
+    if (!cn.length) { line[i] = lastNote; continue; }
 
-    // Apply arp mode to the chord tones for this step.
-    const arpedNote = arp(cn, arpeMode, i);
+    // Tension: on the penultimate chord, bias toward scale degrees that
+    // want to resolve (7th → root, 4th → 3rd).
+    const isPreResolution = ci === chordProgression.length - 2;
+    const isResolution    = ci === 0 && i > 0;
 
-    const motifNote = motif[i % motifLen];
-    const useMotif  = rnd() < 0.68;
+    let note;
+    const r = rnd();
 
-    if (useMotif) {
-      // Transpose the motif note to fit the current chord via voice leading.
-      line[i] = cn.reduce((best, n) =>
+    if (isResolution && r < 0.6) {
+      // Resolution — move toward root of first chord
+      const root = chordNotes(chordProgression[0], pool)[0] || pool[0];
+      note = pool.reduce((best, n) =>
+        Math.abs(pool.indexOf(n) - pool.indexOf(root)) <
+        Math.abs(pool.indexOf(best) - pool.indexOf(root)) ? n : best
+      , lastNote);
+    } else if (isPreResolution && r < 0.45) {
+      // Tension — pick a note one scale step above the resolution target
+      const resRoot = chordNotes(chordProgression[0], pool)[0] || pool[0];
+      const resIdx  = pool.indexOf(resRoot);
+      note = pool[clamp(resIdx + 1, 0, pool.length - 1)];
+    } else if (r < 0.65) {
+      // Motif transposed to current chord via nearest chord tone
+      const motifNote = motif[i % MOTIF_LEN];
+      note = cn.reduce((best, n) =>
         Math.abs(pool.indexOf(n) - pool.indexOf(motifNote)) <
         Math.abs(pool.indexOf(best) - pool.indexOf(motifNote)) ? n : best
-      , arpedNote);
-    } else if (rnd() < chaos) {
-      // Chaos: free note from pool
-      line[i] = pick(pool);
+      , arp(cn, arpeMode, i));
+    } else if (r < 0.65 + chaos * 0.20) {
+      // Passing tone / chromatic approach (chaos-scaled)
+      note = pick(pool);
     } else {
-      // Voice lead from previous
-      line[i] = voiceLead(line[Math.max(0, i - 1)], cn);
+      // Voice lead ±1–2 from last note, staying in chord
+      note = voiceLead(lastNote, cn);
     }
 
-    // Note length
-    const r = rnd();
-    let l = lenBias;
-    if (r < 0.45)      l = lenBias;
-    else if (r < 0.65) l = lenBias * 2;
-    else if (r < 0.82) l = Math.max(0.5, lenBias * 0.5);
-    else               l = lenBias * 3;
-    lengths[i] = Math.min(l, 8);
+    line[i]   = note;
+    lastNote  = note;
+
+    // Note lengths: section drives the bias
+    const lr = rnd();
+    let   l  = lenBias;
+    if      (lr < 0.42) l = lenBias;
+    else if (lr < 0.62) l = lenBias * 2;
+    else if (lr < 0.80) l = Math.max(0.5, lenBias * 0.5);
+    else                l = Math.min(lenBias * 3, 8);
+    lengths[i] = l;
   }
 
-  // Tile the pattern to fill MAX_STEPS.
+  // Tile to MAX_STEPS
   for (let i = steps; i < MAX_STEPS; i++) {
     line[i] = line[i % Math.max(1, steps)];
   }
 
-  return { line, lengths };
+  return { line, lengths, lastNote };
 }
 
 export function buildSection(genre, sectionName, modeName, progression, arpeMode, prevBass) {
@@ -456,7 +484,7 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
   const synthLb =
     sec.lb * (sectionName === 'break' ? 3 : sectionName === 'ambient' ? 4 : 1.2);
 
-  const { line: bassLine, lengths: bassLengths } = buildMelodicLine(
+  const { line: bassLine, lengths: bassLengths, lastNote: lastBassNote } = buildMelodicLine(
     bp, progression, laneLen.bass, chaos, arpeMode, bassLb, prevBass,
   );
 
@@ -585,7 +613,7 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
     }
   }
 
-  const lb = bassLine[laneLen.bass - 1] || bp[0];
+  const lb = lastBassNote || bassLine[laneLen.bass - 1] || bp[0];
 
   return {
     patterns: p,

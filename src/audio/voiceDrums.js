@@ -1,318 +1,292 @@
 import { clamp, rnd, GENRES } from '../music/core';
 import { driveCurve } from './engineCore';
 
-export const ss = (node, time) => {
-  try {
-    node.start(time);
-  } catch {}
-};
+const ss = (n, t) => { try { n.start(t); } catch {} };
+const st = (n, t) => { try { n.stop(t);  } catch {} };
 
-export const st = (node, time) => {
-  try {
-    node.stop(time);
-  } catch {}
-};
+function cleanup(nodes, ms) {
+  const fn = () => nodes.forEach(n => { try { n.disconnect(); } catch {} });
+  setTimeout(fn, ms + 80);
+  if (nodes[0]) nodes[0].onended = fn;
+}
+function track(ref, ms) {
+  ref.current += 1;
+  setTimeout(() => { ref.current = Math.max(0, ref.current - 1); }, ms + 80);
+}
+function guard(ref, limit = 90) { return ref.current < limit; }
 
-export const gc = (src, nodes, ms) => {
-  const fn = () => {
-    [src, ...nodes].forEach((n) => {
-      try {
-        n.disconnect();
-      } catch {}
-    });
-  };
-
-  src.onended = fn;
-  setTimeout(fn, ms);
-};
-
-export const noiseBuffer = (audioRef, len = 0.22, amt = 1, color = 'white') => {
-  const a = audioRef.current;
-  if (!a) return null;
-
-  const sr = a.ctx.sampleRate;
-  const b = a.ctx.createBuffer(1, Math.floor(sr * len), sr);
-  const d = b.getChannelData(0);
-
+export function noiseBuffer(ctx, dur = 0.22, amt = 1, color = 'white') {
+  const sr  = ctx.sampleRate;
+  const buf = ctx.createBuffer(1, Math.floor(sr * dur), sr);
+  const d   = buf.getChannelData(0);
   if (color === 'white') {
-    for (let i = 0; i < d.length; i += 1) d[i] = (rnd() * 2 - 1) * amt;
-    return b;
+    for (let i = 0; i < d.length; i++) d[i] = (rnd() * 2 - 1) * amt;
+    return buf;
   }
-
-  let b0 = 0;
-  let b1 = 0;
-  let b2 = 0;
-  let b3 = 0;
-  let b4 = 0;
-  let b5 = 0;
-
-  for (let i = 0; i < d.length; i += 1) {
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0;
+  for (let i = 0; i < d.length; i++) {
     const w = rnd() * 2 - 1;
-
     if (color === 'pink') {
-      b0 = 0.99886 * b0 + w * 0.0555179;
-      b1 = 0.99332 * b1 + w * 0.0750759;
-      b2 = 0.969 * b2 + w * 0.153852;
-      b3 = 0.8665 * b3 + w * 0.310486;
-      b4 = 0.55 * b4 + w * 0.532952;
-      b5 = -0.7616 * b5 - w * 0.016898;
-      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + w * 0.5362) * amt * 0.11;
-    } else {
-      b0 = 0.99 * b0 + w * 0.01;
-      d[i] = b0 * amt * 3;
-    }
+      b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+      b2=0.969*b2+w*0.153852;   b3=0.8665*b3+w*0.310486;
+      b4=0.55*b4+w*0.532952;    b5=-0.7616*b5-w*0.016898;
+      d[i] = (b0+b1+b2+b3+b4+b5+w*0.5362)*amt*0.11;
+    } else { b0=0.99*b0+w*0.01; d[i]=b0*amt*3; }
   }
+  return buf;
+}
 
-  return b;
-};
+// ── KICK ──────────────────────────────────────────────────────────────────────
+export function playKick({ audioRef, getLaneGain, genre, drumDecay, noiseMix,
+  bassSubAmt, activeNodesRef, flashLane, accent = 1, time }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('kick'); if (!out) return;
 
-export const trackNode = (activeNodesRef, ms) => {
-  activeNodesRef.current += 1;
-  setTimeout(() => {
-    activeNodesRef.current = Math.max(0, activeNodesRef.current - 1);
-  }, ms + 80);
-};
+  const gd  = GENRES[genre] || GENRES.techno;
+  const kf  = gd.kickFreq || 80;
+  const ke  = gd.kickEnd  || 30;
+  const env = 0.06 + drumDecay * 0.10;
+  const dec = 0.14 + drumDecay * 0.28;
 
-export const nodeGuard = (activeNodesRef, limit = 90) => activeNodesRef.current < limit;
-
-export function playKick({
-  audioRef,
-  getLaneGain,
-  genre,
-  drumDecay,
-  noiseMix,
-  bassSubAmt,
-  activeNodesRef,
-  flashLane,
-  accent = 1,
-  time,
-}) {
-  if (!nodeGuard(activeNodesRef)) return;
-  const a = audioRef.current;
-  if (!a) return;
-
-  const out = getLaneGain('kick');
-  if (!out) return;
-
-  const gd = GENRES[genre] || GENRES.techno;
-  const kf = gd.kickFreq || 90;
-  const ke = gd.kickEnd || 35;
-  const et = 0.08 + drumDecay * 0.12;
-  const dt = 0.16 + drumDecay * 0.22;
-
-  const body = a.ctx.createOscillator();
+  const body  = a.ctx.createOscillator();
+  const sub   = a.ctx.createOscillator();
+  const punch = a.ctx.createOscillator();
   const bG = a.ctx.createGain();
-
-  const sub = a.ctx.createOscillator();
   const sG = a.ctx.createGain();
+  const pG = a.ctx.createGain();
 
-  const click = a.ctx.createBufferSource();
-  const cG = a.ctx.createGain();
+  const clickBuf = a.ctx.createBuffer(1, Math.floor(a.ctx.sampleRate * 0.004), a.ctx.sampleRate);
+  const cd = clickBuf.getChannelData(0);
+  for (let i = 0; i < cd.length; i++) cd[i] = rnd() * 2 - 1;
+  const click = a.ctx.createBufferSource(); click.buffer = clickBuf;
+  const cG    = a.ctx.createGain();
+  const drive = a.ctx.createWaveShaper();
+  const mG    = a.ctx.createGain();
+  driveCurve(drive, 0.04 + noiseMix * 0.10);
 
-  const mG = a.ctx.createGain();
-  const sh = a.ctx.createWaveShaper();
-
-  body.type = 'sine';
-  body.frequency.setValueAtTime(kf, time);
-  body.frequency.exponentialRampToValueAtTime(Math.max(20, ke), time + et);
-
-  sub.type = 'sine';
+  body.type  = 'sine';
+  body.frequency.setValueAtTime(kf * 2.2, time);
+  body.frequency.exponentialRampToValueAtTime(Math.max(18, ke), time + env);
+  sub.type   = 'sine';
   sub.frequency.setValueAtTime(kf * 0.5, time);
-  sub.frequency.exponentialRampToValueAtTime(Math.max(18, ke * 0.5), time + et);
-
-  const cb = a.ctx.createBuffer(1, Math.floor(a.ctx.sampleRate * 0.004), a.ctx.sampleRate);
-  const cd = cb.getChannelData(0);
-  for (let i = 0; i < cd.length; i += 1) cd[i] = rnd() * 2 - 1;
-  click.buffer = cb;
-
-  driveCurve(sh, 0.05 + noiseMix * 0.08);
+  sub.frequency.exponentialRampToValueAtTime(Math.max(15, ke * 0.5), time + env);
+  punch.type = 'triangle';
+  punch.frequency.setValueAtTime(kf * 4, time);
+  punch.frequency.exponentialRampToValueAtTime(kf, time + 0.015);
 
   bG.gain.setValueAtTime(0, time);
-  bG.gain.linearRampToValueAtTime(0.82 * accent, time + 0.001);
-  bG.gain.exponentialRampToValueAtTime(0.001, time + dt);
-
+  bG.gain.linearRampToValueAtTime(0.88 * accent, time + 0.001);
+  bG.gain.exponentialRampToValueAtTime(0.001, time + dec);
   sG.gain.setValueAtTime(0, time);
-  sG.gain.linearRampToValueAtTime(0.5 * accent * bassSubAmt, time + 0.002);
-  sG.gain.exponentialRampToValueAtTime(0.001, time + dt);
+  sG.gain.linearRampToValueAtTime(0.55 * accent * bassSubAmt, time + 0.002);
+  sG.gain.exponentialRampToValueAtTime(0.001, time + dec);
+  pG.gain.setValueAtTime(0.22 * accent, time);
+  pG.gain.exponentialRampToValueAtTime(0.001, time + 0.02);
+  cG.gain.setValueAtTime(0.18 + noiseMix * 0.12, time);
+  cG.gain.exponentialRampToValueAtTime(0.001, time + 0.010);
+  mG.gain.value = 0.96;
 
-  cG.gain.setValueAtTime(0.16 + noiseMix * 0.1, time);
-  cG.gain.exponentialRampToValueAtTime(0.001, time + 0.012);
-
-  mG.gain.value = 0.98;
-
-  body.connect(bG);
-  sub.connect(sG);
-  click.connect(cG);
-
-  bG.connect(mG);
-  sG.connect(mG);
-  cG.connect(sh);
-  sh.connect(mG);
-
+  body.connect(bG); bG.connect(mG);
+  sub.connect(sG);  sG.connect(mG);
+  punch.connect(pG);pG.connect(mG);
+  click.connect(cG);cG.connect(drive);drive.connect(mG);
   mG.connect(out);
 
-  ss(body, time);
-  ss(sub, time);
-  ss(click, time);
+  ss(body, time); ss(sub, time); ss(punch, time); ss(click, time);
+  st(body, time+dec+0.02); st(sub, time+dec+0.02); st(punch, time+0.03); st(click, time+0.02);
 
-  st(body, time + dt + 0.02);
-  st(sub, time + dt + 0.02);
-  st(click, time + 0.02);
-
-  gc(click, [body, sub, bG, sG, cG, mG, sh], 400);
-
-  trackNode(activeNodesRef, 400);
+  const ms = (dec + 0.1) * 1000;
+  cleanup([body, sub, punch, click, bG, sG, pG, cG, drive, mG], ms);
+  track(activeNodesRef, ms);
   flashLane?.('kick', 1);
 }
 
-export function playSnare({
-  audioRef,
-  getLaneGain,
-  genre,
-  drumDecay,
-  noiseMix,
-  activeNodesRef,
-  flashLane,
-  accent = 1,
-  time,
-}) {
-  if (!nodeGuard(activeNodesRef)) return;
-  const a = audioRef.current;
-  if (!a) return;
+// ── SNARE ────────────────────────────────────────────────────────────────────
+export function playSnare({ audioRef, getLaneGain, genre, drumDecay, noiseMix,
+  activeNodesRef, flashLane, accent = 1, time, rimshot = false }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('snare'); if (!out) return;
 
-  const out = getLaneGain('snare');
-  if (!out) return;
+  if (rimshot) {
+    const o1 = a.ctx.createOscillator(); o1.type = 'square'; o1.frequency.value = 400;
+    const o2 = a.ctx.createOscillator(); o2.type = 'sine';   o2.frequency.value = 820;
+    const g  = a.ctx.createGain();
+    g.gain.setValueAtTime(0.45 * accent, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.038);
+    o1.connect(g); o2.connect(g); g.connect(out);
+    ss(o1, time); ss(o2, time); st(o1, time+0.05); st(o2, time+0.05);
+    cleanup([o1, o2, g], 120); track(activeNodesRef, 120);
+    flashLane?.('snare', 0.6); return;
+  }
 
-  const gd = GENRES[genre] || GENRES.techno;
+  const gd     = GENRES[genre] || GENRES.techno;
   const nColor = gd.noiseColor || 'white';
+  const nDur   = 0.10 + drumDecay * 0.14;
+  const noise  = a.ctx.createBufferSource();
+  noise.buffer = noiseBuffer(a.ctx, nDur + 0.06, 1, nColor);
+  const nHP = a.ctx.createBiquadFilter(); nHP.type='highpass'; nHP.frequency.value=1200+noiseMix*2400;
+  const nBP = a.ctx.createBiquadFilter(); nBP.type='bandpass'; nBP.frequency.value=2400+noiseMix*1400; nBP.Q.value=0.7;
+  const nG  = a.ctx.createGain();
+  const t1  = a.ctx.createOscillator(); t1.type='triangle'; t1.frequency.setValueAtTime(195,time); t1.frequency.exponentialRampToValueAtTime(115,time+0.065);
+  const t2  = a.ctx.createOscillator(); t2.type='sine';     t2.frequency.setValueAtTime(340,time); t2.frequency.exponentialRampToValueAtTime(175,time+0.055);
+  const t1G = a.ctx.createGain(); const t2G = a.ctx.createGain();
+  const sh  = a.ctx.createWaveShaper(); driveCurve(sh, clamp(0.05+noiseMix*0.14,0.03,0.25));
+  const mix = a.ctx.createGain(); mix.gain.value = 0.88;
 
-  const noise = a.ctx.createBufferSource();
-  const nG = a.ctx.createGain();
-  const nHP = a.ctx.createBiquadFilter();
-  const nBP = a.ctx.createBiquadFilter();
+  nG.gain.setValueAtTime(0.001,time); nG.gain.linearRampToValueAtTime((0.65+noiseMix*0.28)*accent,time+0.001); nG.gain.exponentialRampToValueAtTime(0.001,time+nDur);
+  t1G.gain.setValueAtTime(0.001,time); t1G.gain.linearRampToValueAtTime(0.30*accent,time+0.001); t1G.gain.exponentialRampToValueAtTime(0.001,time+0.085);
+  t2G.gain.setValueAtTime(0.001,time); t2G.gain.linearRampToValueAtTime(0.15*accent,time+0.001); t2G.gain.exponentialRampToValueAtTime(0.001,time+0.055);
 
-  const tone1 = a.ctx.createOscillator();
-  const tone2 = a.ctx.createOscillator();
-  const t1G = a.ctx.createGain();
-  const t2G = a.ctx.createGain();
+  noise.connect(nHP); nHP.connect(nBP); nBP.connect(nG); nG.connect(sh);
+  t1.connect(t1G); t2.connect(t2G);
+  t1G.connect(mix); t2G.connect(mix); sh.connect(mix); mix.connect(out);
 
-  const mix = a.ctx.createGain();
-  const sh = a.ctx.createWaveShaper();
+  ss(noise,time); ss(t1,time); ss(t2,time);
+  st(noise,time+nDur+0.02); st(t1,time+0.10); st(t2,time+0.08);
 
-  noise.buffer = noiseBuffer(a ? { current: a } : audioRef, 0.18 + drumDecay * 0.16, 1, nColor);
-
-  nHP.type = 'highpass';
-  nHP.frequency.value = 1400 + noiseMix * 2200;
-  nBP.type = 'bandpass';
-  nBP.frequency.value = 2200 + noiseMix * 1200;
-  nBP.Q.value = 0.8;
-
-  tone1.type = 'triangle';
-  tone2.type = 'sine';
-  tone1.frequency.setValueAtTime(180, time);
-  tone2.frequency.setValueAtTime(330, time);
-  tone1.frequency.exponentialRampToValueAtTime(110, time + 0.06);
-  tone2.frequency.exponentialRampToValueAtTime(170, time + 0.05);
-
-  nG.gain.setValueAtTime(0.001, time);
-  nG.gain.linearRampToValueAtTime((0.62 + noiseMix * 0.25) * accent, time + 0.001);
-  nG.gain.exponentialRampToValueAtTime(0.001, time + 0.11 + drumDecay * 0.12);
-
-  t1G.gain.setValueAtTime(0.001, time);
-  t1G.gain.linearRampToValueAtTime(0.28 * accent, time + 0.001);
-  t1G.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
-
-  t2G.gain.setValueAtTime(0.001, time);
-  t2G.gain.linearRampToValueAtTime(0.14 * accent, time + 0.001);
-  t2G.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
-
-  driveCurve(sh, clamp(0.04 + noiseMix * 0.12, 0.03, 0.22));
-  mix.gain.value = 0.9;
-
-  noise.connect(nHP);
-  nHP.connect(nBP);
-  nBP.connect(nG);
-  nG.connect(sh);
-
-  tone1.connect(t1G);
-  tone2.connect(t2G);
-
-  t1G.connect(mix);
-  t2G.connect(mix);
-  sh.connect(mix);
-  mix.connect(out);
-
-  ss(noise, time);
-  ss(tone1, time);
-  ss(tone2, time);
-
-  st(noise, time + 0.24 + drumDecay * 0.1);
-  st(tone1, time + 0.1);
-  st(tone2, time + 0.08);
-
-  gc(noise, [tone1, tone2, nG, nHP, nBP, t1G, t2G, mix, sh], 500);
-
-  trackNode(activeNodesRef, 500);
+  const ms = (nDur+0.15)*1000;
+  cleanup([noise,t1,t2,nG,nHP,nBP,t1G,t2G,sh,mix], ms);
+  track(activeNodesRef, ms);
   flashLane?.('snare', 1);
 }
 
-export function playHat({
-  audioRef,
-  getLaneGain,
-  genre,
-  noiseMix,
-  activeNodesRef,
-  flashLane,
-  accent = 1,
-  open = false,
-  time,
-}) {
-  if (!nodeGuard(activeNodesRef)) return;
-  const a = audioRef.current;
-  if (!a) return;
+// ── CLAP ──────────────────────────────────────────────────────────────────────
+export function playClap({ audioRef, getLaneGain, noiseMix,
+  activeNodesRef, flashLane, accent = 1, time }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('snare'); if (!out) return;
 
-  const out = getLaneGain('hat');
-  if (!out) return;
+  const offsets = [0, 0.008, 0.016, 0.028];
+  const nodes   = [];
+  offsets.forEach(off => {
+    const buf = noiseBuffer(a.ctx, 0.05, 1, 'white');
+    const src = a.ctx.createBufferSource(); src.buffer = buf;
+    const bp  = a.ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1100+noiseMix*600; bp.Q.value=0.9;
+    const g   = a.ctx.createGain();
+    g.gain.setValueAtTime(0.38*accent, time+off);
+    g.gain.exponentialRampToValueAtTime(0.001, time+off+0.06);
+    src.connect(bp); bp.connect(g); g.connect(out);
+    ss(src, time+off); st(src, time+off+0.07);
+    nodes.push(src, bp, g);
+  });
+  setTimeout(() => nodes.forEach(n => { try { n.disconnect(); } catch {} }), 280);
+  track(activeNodesRef, 280);
+  flashLane?.('snare', 0.85);
+}
 
-  const gd = GENRES[genre] || GENRES.techno;
+// ── HIHAT ────────────────────────────────────────────────────────────────────
+export function playHat({ audioRef, getLaneGain, genre, noiseMix,
+  activeNodesRef, flashLane, accent = 1, open = false, time }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('hat'); if (!out) return;
+
+  const gd     = GENRES[genre] || GENRES.techno;
   const nColor = gd.noiseColor || 'white';
+  const dur    = open ? 0.18 + noiseMix * 0.12 : 0.04 + noiseMix * 0.02;
+
+  // Metallic model: 6 square oscillators (TR-909 style)
+  const freqs = [205.3, 369.9, 437.0, 523.0, 612.3, 785.1];
+  const oscG  = a.ctx.createGain(); oscG.gain.value = 0.07;
+  const oscNodes = freqs.map(f => {
+    const o = a.ctx.createOscillator(); o.type='square'; o.frequency.value=f*(open?1.0:1.02);
+    o.connect(oscG); ss(o,time); st(o,time+dur+0.01); return o;
+  });
 
   const noise = a.ctx.createBufferSource();
+  noise.buffer = noiseBuffer(a.ctx, dur+0.04, 1, nColor);
+  const hp = a.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=open?5000:6500;
+  const bp = a.ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=open?8500:10000; bp.Q.value=open?0.8:1.1;
   const nG = a.ctx.createGain();
-  const hp = a.ctx.createBiquadFilter();
-  const bp = a.ctx.createBiquadFilter();
-  const sh = a.ctx.createWaveShaper();
-  const mix = a.ctx.createGain();
+  nG.gain.setValueAtTime(0.001,time); nG.gain.linearRampToValueAtTime((0.25+noiseMix*0.20)*accent,time+0.001); nG.gain.exponentialRampToValueAtTime(0.001,time+dur);
+  const sh = a.ctx.createWaveShaper(); driveCurve(sh, clamp(0.02+noiseMix*0.06,0.01,0.15));
+  const mix = a.ctx.createGain(); mix.gain.value = open?0.52:0.40;
 
-  noise.buffer = noiseBuffer(a ? { current: a } : audioRef, open ? 0.22 : 0.08, 1, nColor);
+  noise.connect(hp); hp.connect(bp); bp.connect(nG); nG.connect(sh); sh.connect(mix);
+  oscG.connect(mix); mix.connect(out);
+  ss(noise,time); st(noise,time+dur+0.02);
 
-  hp.type = 'highpass';
-  hp.frequency.value = open ? 5500 : 7000;
+  const ms = (dur+0.1)*1000;
+  const all = [...oscNodes, noise, oscG, hp, bp, nG, sh, mix];
+  setTimeout(() => all.forEach(n => { try { n.disconnect(); } catch {} }), ms+80);
+  track(activeNodesRef, ms);
+  flashLane?.('hat', open?0.88:0.62);
+}
 
-  bp.type = 'bandpass';
-  bp.frequency.value = open ? 9000 : 10500;
-  bp.Q.value = open ? 0.9 : 1.2;
+// ── TOM ───────────────────────────────────────────────────────────────────────
+export function playTom({ audioRef, getLaneGain, activeNodesRef,
+  flashLane, accent = 1, time, freq = 120, decay = 0.25 }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('kick'); if (!out) return;
 
-  const dur = open ? 0.16 : 0.045;
-  nG.gain.setValueAtTime(0.001, time);
-  nG.gain.linearRampToValueAtTime((0.22 + noiseMix * 0.18) * accent, time + 0.001);
-  nG.gain.exponentialRampToValueAtTime(0.001, time + dur);
+  const body  = a.ctx.createOscillator(); body.type='sine';
+  body.frequency.setValueAtTime(freq*2, time);
+  body.frequency.exponentialRampToValueAtTime(Math.max(20, freq*0.8), time+decay*0.3);
+  const bG = a.ctx.createGain();
+  bG.gain.setValueAtTime(0,time); bG.gain.linearRampToValueAtTime(0.75*accent,time+0.002); bG.gain.exponentialRampToValueAtTime(0.001,time+decay);
 
-  driveCurve(sh, clamp(0.02 + noiseMix * 0.05, 0.02, 0.14));
-  mix.gain.value = open ? 0.58 : 0.42;
+  const noise = a.ctx.createBufferSource();
+  noise.buffer = noiseBuffer(a.ctx, 0.02, 0.4, 'white');
+  const nG = a.ctx.createGain();
+  nG.gain.setValueAtTime(0.3*accent,time); nG.gain.exponentialRampToValueAtTime(0.001,time+0.025);
 
-  noise.connect(hp);
-  hp.connect(bp);
-  bp.connect(nG);
-  nG.connect(sh);
-  sh.connect(mix);
-  mix.connect(out);
+  const mix = a.ctx.createGain(); mix.gain.value=0.88;
+  body.connect(bG); noise.connect(nG); bG.connect(mix); nG.connect(mix); mix.connect(out);
+  ss(body,time); ss(noise,time); st(body,time+decay+0.02); st(noise,time+0.03);
 
-  ss(noise, time);
-  st(noise, time + dur + 0.02);
+  const ms = (decay+0.1)*1000;
+  cleanup([body, noise, bG, nG, mix], ms);
+  track(activeNodesRef, ms);
+  flashLane?.('kick', 0.7);
+}
 
-  gc(noise, [nG, hp, bp, sh, mix], open ? 350 : 220);
+// ── RIDE ──────────────────────────────────────────────────────────────────────
+export function playRide({ audioRef, getLaneGain, activeNodesRef,
+  flashLane, accent = 1, time }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('hat'); if (!out) return;
 
-  trackNode(activeNodesRef, open ? 350 : 220);
-  flashLane?.('hat', open ? 0.9 : 0.65);
+  const freqs = [432.5, 528.0, 648.0, 793.5];
+  const mix   = a.ctx.createGain(); mix.gain.value = 0.36 * accent;
+  const oscNodes = freqs.map(f => {
+    const o = a.ctx.createOscillator(); o.type='square'; o.frequency.value=f;
+    o.connect(mix); ss(o,time); st(o,time+0.55); return o;
+  });
+  const env = a.ctx.createGain();
+  env.gain.setValueAtTime(0.001,time); env.gain.linearRampToValueAtTime(1,time+0.002); env.gain.exponentialRampToValueAtTime(0.001,time+0.5);
+  const hp = a.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=4000;
+  mix.connect(env); env.connect(hp); hp.connect(out);
+
+  const ms = 650;
+  setTimeout(() => [...oscNodes,mix,env,hp].forEach(n => { try { n.disconnect(); } catch {} }), ms);
+  track(activeNodesRef, ms);
+  flashLane?.('hat', 0.5);
+}
+
+// ── PERCUSSION (FM blip) ──────────────────────────────────────────────────────
+export function playPerc({ audioRef, getLaneGain, activeNodesRef,
+  flashLane, accent = 1, time, freq = 800, decay = 0.08, fmRatio = 2.1 }) {
+  if (!guard(activeNodesRef)) return;
+  const a = audioRef.current; if (!a) return;
+  const out = getLaneGain('snare'); if (!out) return;
+
+  const car = a.ctx.createOscillator(); car.type='sine'; car.frequency.value=freq;
+  const mod = a.ctx.createOscillator(); mod.type='sine'; mod.frequency.value=freq*fmRatio;
+  const mG  = a.ctx.createGain();
+  mG.gain.setValueAtTime(freq*1.5,time); mG.gain.exponentialRampToValueAtTime(1,time+decay*0.5);
+  const env = a.ctx.createGain();
+  env.gain.setValueAtTime(0.5*accent,time); env.gain.exponentialRampToValueAtTime(0.001,time+decay);
+
+  mod.connect(mG); mG.connect(car.frequency); car.connect(env); env.connect(out);
+  ss(car,time); ss(mod,time); st(car,time+decay+0.02); st(mod,time+decay+0.02);
+
+  const ms = (decay+0.05)*1000;
+  cleanup([car,mod,mG,env], ms);
+  track(activeNodesRef, ms);
+  flashLane?.('snare', 0.5);
 }
