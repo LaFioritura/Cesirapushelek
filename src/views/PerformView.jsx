@@ -1,11 +1,11 @@
 import React from 'react';
 import { MAX_STEPS } from '../music/core';
 
-const LANE_CLR = { kick:'#ff4444', snare:'#ffaa00', hat:'#ffdd00', bass:'#00ccff', synth:'#cc88ff' };
+const LANE_CLR  = { kick:'#ff4444', snare:'#ffaa00', hat:'#ffdd00', bass:'#00ccff', synth:'#cc88ff' };
 const SECTS     = ['drop','break','build','groove','tension','fill','intro','outro'];
 const SHORTCUT  = { drop:'A', break:'S', build:'D', groove:'F', tension:'G', fill:'H' };
 
-function MacroSlider({ label, v, s, c, min=0, max=1 }) {
+function MacroSlider({ label, v, s, c, min = 0, max = 1 }) {
   const pct = (((v - min) / (max - min)) * 100).toFixed(0);
   return (
     <div className="macro-slider" style={{ '--macro-color': c }}>
@@ -20,25 +20,27 @@ function MacroSlider({ label, v, s, c, min=0, max=1 }) {
 }
 
 export default function PerformView({
-  genre, gc, isPlaying, currentSectionName, sectionColor, sectionColors,
-  laneVU, patterns, bassLine, synthLine, laneLen, step, page, setPage,
-  activeNotes, arpeMode, modeName, autopilot, autopilotIntensity, setAutopilotIntensity,
-  perfActions, regenerateSection, savedScenes, saveScene, loadScene,
-  master, setMaster, space, setSpace, tone, setTone, drive, setDrive,
-  grooveAmt, setGrooveAmt, swing, setSwing, toggleCell, songArc, arcIdx, songActive,
-  compact, phone,
+  // Grid
+  patterns, bassLine, synthLine, laneLen, step, page, setPage,
+  toggleCell, modeName, laneVU, activeNotes, isPlaying,
+  // Section
+  genre, currentSectionName, sectionColor, sectionColors,
+  songArc, arcIdx, arpeMode, perfActions, regenerateSection,
+  // Scenes
+  savedScenes, saveScene, loadScene,
+  // Macros
+  master, setMaster, space, setSpace, tone, setTone,
+  drive, setDrive, grooveAmt, setGrooveAmt, swing, setSwing,
 }) {
-  void autopilot;
-
-  const sc         = sectionColor || '#fff';
-  const visStart   = page * 16;
-  const visEnd     = Math.min(visStart + 16, MAX_STEPS);
-  const visIdx     = Array.from({ length: visEnd - visStart }, (_, i) => visStart + i);
-  const cols       = visIdx.length;
+  const sc       = sectionColor || '#fff';
+  const visStart = page * 16;
+  const visEnd   = Math.min(visStart + 16, MAX_STEPS);
+  const visIdx   = Array.from({ length: visEnd - visStart }, (_, i) => visStart + i);
+  const cols     = visIdx.length;
 
   return (
     <div className="view-root">
-      {/* ── Left sidebar: section pads + actions ─────────────────────────── */}
+      {/* ── Left sidebar ─────────────────────────────────────────────────── */}
       <aside className="sidebar">
         <div className="sidebar__section">
           <span className="sidebar__label">Sections</span>
@@ -46,12 +48,10 @@ export default function PerformView({
             const color  = sectionColors?.[sec] || '#fff';
             const active = currentSectionName === sec;
             return (
-              <button
-                key={sec}
+              <button key={sec}
                 className={`sect-pad${active ? ' active' : ''}`}
                 style={{ '--sect-color': color }}
-                onClick={() => perfActions[sec]?.()}
-              >
+                onClick={() => perfActions[sec]?.()}>
                 <span>{sec}</span>
                 {SHORTCUT[sec] && <span className="sect-pad__key">[{SHORTCUT[sec]}]</span>}
               </button>
@@ -62,17 +62,17 @@ export default function PerformView({
         <div className="sidebar__section">
           <span className="sidebar__label">Actions</span>
           {[
-            { label:'MUTATE',    fn: perfActions.mutate,           key:'M' },
-            { label:'THIN',      fn: perfActions.thinOut },
-            { label:'THICKEN',   fn: perfActions.thicken },
-            { label:'REHARM',    fn: perfActions.reharmonize },
-            { label:'ARP →',     fn: perfActions.shiftArp },
-            { label:'REGEN',     fn: () => regenerateSection(currentSectionName), key:'R' },
-            { label:'RND SYNTH', fn: perfActions.randomizeNotes },
-            { label:'RND BASS',  fn: perfActions.randomizeBass },
-            { label:'NOTES ↑',   fn: perfActions.shiftNotesUp },
-            { label:'NOTES ↓',   fn: perfActions.shiftNotesDown },
-            { label:'CLEAR',     fn: perfActions.clear },
+            { label: 'MUTATE',    fn: perfActions.mutate,         key: 'M' },
+            { label: 'THIN OUT',  fn: perfActions.thinOut },
+            { label: 'THICKEN',   fn: perfActions.thicken },
+            { label: 'REHARM',    fn: perfActions.reharmonize },
+            { label: 'ARP →',     fn: perfActions.shiftArp },
+            { label: 'REGEN',     fn: perfActions.regen,          key: 'R' },
+            { label: 'RND SYNTH', fn: perfActions.randomizeNotes },
+            { label: 'RND BASS',  fn: perfActions.randomizeBass },
+            { label: 'NOTES ↑',   fn: perfActions.shiftNotesUp },
+            { label: 'NOTES ↓',   fn: perfActions.shiftNotesDown },
+            { label: 'CLEAR',     fn: perfActions.clear },
           ].map(({ label, fn, key }) => (
             <button key={label} className="action-btn" onClick={fn}>
               <span>{label}</span>
@@ -84,9 +84,8 @@ export default function PerformView({
 
       {/* ── Center: grid ─────────────────────────────────────────────────── */}
       <div className="grid-area">
-        {/* Top bar */}
         <div className="grid-topbar">
-          <div className="sect-indicator__name" style={{ color: sc, textShadow: `0 0 18px ${sc}44`, fontSize:13, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' }}>
+          <div style={{ color: sc, textShadow:`0 0 18px ${sc}44`, fontSize:13, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase' }}>
             {currentSectionName}
           </div>
           <div className="sect-indicator__divider" />
@@ -97,7 +96,8 @@ export default function PerformView({
               {songArc.map((s, i) => {
                 const segColor = sectionColors?.[s] || '#fff';
                 return (
-                  <div key={i} className={`arc-pip${i===arcIdx?' current':i<arcIdx?' done':''}`}
+                  <div key={i}
+                    className={`arc-pip${i===arcIdx?' current':i<arcIdx?' done':''}`}
                     style={{ width: i===arcIdx?20:10, background: i===arcIdx ? segColor : i<arcIdx ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.1)' }}
                   />
                 );
@@ -113,13 +113,11 @@ export default function PerformView({
           </nav>
         </div>
 
-        {/* Lane rows */}
         {['kick','snare','hat','bass','synth'].map(lane => {
-          const lc  = LANE_CLR[lane];
-          const ll  = laneLen[lane] || 16;
-          const vu  = laneVU[lane]  || 0;
+          const lc      = LANE_CLR[lane];
+          const ll      = laneLen[lane] || 16;
+          const vu      = laneVU[lane]  || 0;
           const hasNote = lane === 'bass' || lane === 'synth';
-
           return (
             <div key={lane} className="lane-row">
               <div className="lane-label" style={{ '--lane-color': lc }}>
@@ -129,22 +127,18 @@ export default function PerformView({
                 </div>
                 {hasNote && <div className="lane-note">{activeNotes[lane]}</div>}
               </div>
-
               <div className="step-grid" style={{ gridTemplateColumns:`repeat(${cols},1fr)`, '--lane-color':lc }}>
                 {visIdx.map(idx => {
                   if (idx >= ll) return <div key={idx} className="step-cell inactive" />;
-                  const sd       = patterns[lane][idx];
-                  const on       = sd.on;
-                  const playing  = step === idx && isPlaying;
-                  const tied     = sd.tied;
-                  const isBeat   = idx % 4  === 0;
-                  const isBar    = idx % 16 === 0;
+                  const sd      = patterns[lane][idx];
+                  const isBeat  = idx % 4  === 0;
+                  const isBar   = idx % 16 === 0;
                   let cls = 'step-cell';
-                  if (isBar)    cls += ' bar';
-                  else if (isBeat) cls += ' beat';
-                  if (on)      cls += ' on';
-                  if (playing) cls += ' playing';
-                  if (tied)    cls += ' tied';
+                  if (isBar)         cls += ' bar';
+                  else if (isBeat)   cls += ' beat';
+                  if (sd.on)         cls += ' on';
+                  if (sd.tied)       cls += ' tied';
+                  if (step===idx && isPlaying) cls += ' playing';
                   return <button key={idx} className={cls} onClick={() => toggleCell(lane, idx)} />;
                 })}
               </div>
@@ -152,12 +146,12 @@ export default function PerformView({
           );
         })}
 
-        {/* Note labels row */}
+        {/* Note hint row */}
         <div className="note-labels-row" style={{ gridTemplateColumns:`repeat(${cols},1fr)`, marginLeft:46 }}>
           {visIdx.map(idx => {
-            const hasBass  = patterns.bass[idx]?.on;
-            const hasSynth = patterns.synth[idx]?.on;
-            const note     = hasBass ? bassLine[idx] : hasSynth ? synthLine[idx] : null;
+            const note = patterns.bass[idx]?.on ? bassLine[idx]
+                       : patterns.synth[idx]?.on ? synthLine[idx]
+                       : null;
             return (
               <div key={idx} className="note-labels-row__cell">
                 {note ? note.replace(/[0-9]/g,'') : ''}
@@ -167,7 +161,7 @@ export default function PerformView({
         </div>
       </div>
 
-      {/* ── Right sidebar: macros + scenes ───────────────────────────────── */}
+      {/* ── Right sidebar ────────────────────────────────────────────────── */}
       <aside className="sidebar sidebar--right">
         <div className="sidebar__section">
           <span className="sidebar__label">Macros</span>
@@ -178,7 +172,6 @@ export default function PerformView({
             { label:'DRIVE',  v:drive,    s:setDrive,    c:'#ff8844' },
             { label:'GROOVE', v:grooveAmt, s:setGrooveAmt, c:'#ffdd00' },
             { label:'SWING',  v:swing,    s:setSwing,    c:'#aa88ff', min:0, max:0.25 },
-            { label:'AUTO',   v:autopilotIntensity, s:setAutopilotIntensity, c:gc },
           ].map(p => <MacroSlider key={p.label} {...p} />)}
         </div>
 
@@ -187,8 +180,8 @@ export default function PerformView({
           <div className="scene-grid">
             {savedScenes.map((scene, i) => (
               <div key={i} className="scene-cell">
-                <button className={`scene-btn${scene ? ' filled' : ''}`} onClick={() => loadScene(i)}>
-                  S{i+1}{scene ? '◆' : ''}
+                <button className={`scene-btn${scene?' filled':''}`} onClick={() => loadScene(i)}>
+                  S{i+1}{scene?'◆':''}
                 </button>
                 <button className="scene-save" onClick={() => saveScene(i)}>SAVE</button>
               </div>

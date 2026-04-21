@@ -37,6 +37,7 @@ export default function App() {
   const activeNodesRef = useRef(0);
   const importRef      = useRef(null);
 
+  // ── Domain hooks ───────────────────────────────────────────────────────────
   const sound = useSoundParams();
 
   const audio = useAudio({
@@ -46,11 +47,13 @@ export default function App() {
 
   const pat = usePatterns({ genre, modeName, arpeMode, setCurrentSectionName });
 
+  // ── VU flash ──────────────────────────────────────────────────────────────
   const flashLane = useCallback((lane, value = 1) => {
     setLaneVU(prev => ({ ...prev, [lane]: Math.max(prev[lane], value) }));
     setTimeout(() => setLaneVU(prev => ({ ...prev, [lane]: Math.max(0, prev[lane] * 0.35) })), 70);
   }, []);
 
+  // ── Sequencer ──────────────────────────────────────────────────────────────
   const seq = useSequencer({
     audioRef: audio.audioRef, getLaneGain: audio.getLaneGain,
     activeNodesRef, patterns: pat.patterns, laneLen: pat.laneLen,
@@ -61,28 +64,35 @@ export default function App() {
     bassFilter: sound.bassFilter, synthFilter: sound.synthFilter,
     drumDecay: sound.drumDecay, noiseMix: sound.noiseMix,
     bassSubAmt: sound.bassSubAmt, fmIdx: sound.fmIdx,
+    swing: sound.swing, humanize: sound.humanize,
+    grooveAmt: sound.grooveAmt, grooveProfile: sound.grooveProfile,
     setActiveNotes, flashLane,
   });
 
+  // ── Transport ──────────────────────────────────────────────────────────────
   const toggleTransport = useCallback(async () => {
     if (!audio.isReady) await audio.ensureEngine();
     else await audio.resumeContext();
     seq.isPlaying ? seq.stop() : seq.start();
   }, [audio, seq]);
 
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const SECTION_KEYS = { a:'drop', s:'break', d:'build', f:'groove', g:'tension', h:'fill' };
     const onKey = e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       const k = e.key.toLowerCase();
-      if (k === ' ') { e.preventDefault(); toggleTransport(); }
-      if (k === 'z') pat.undo();
+      if (k === ' ')   { e.preventDefault(); toggleTransport(); }
+      if (k === 'z')   pat.undo();
+      if (k === 'm')   pat.mutate();
+      if (k === 'r')   pat.regenerateSection(currentSectionName);
       if (SECTION_KEYS[k]) pat.regenerateSection(SECTION_KEYS[k]);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleTransport, pat]);
+  }, [toggleTransport, pat, currentSectionName]);
 
+  // ── Song arc ───────────────────────────────────────────────────────────────
   const startSongArc = useCallback(() => {
     const song = buildSong(genre);
     setSongArc(song.arc); setArcIdx(0); setSongActive(true);
@@ -92,18 +102,20 @@ export default function App() {
 
   const stopSongArc = useCallback(() => setSongActive(false), []);
 
+  // Advance arc every 128 steps.
   useEffect(() => {
     if (!songActive || !seq.isPlaying || songArc.length === 0) return;
-    const STEPS_PER_SECTION = 128;
     const s = pat.stepRef.current;
-    if (s > 0 && s % STEPS_PER_SECTION === 0) {
+    if (s > 0 && s % 128 === 0) {
       const next = arcIdx + 1;
       if (next >= songArc.length) { setSongActive(false); return; }
       setArcIdx(next);
       pat.regenerateSection(songArc[next]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq.visibleStep]);
 
+  // ── Scene management ───────────────────────────────────────────────────────
   const loadScene = useCallback((idx) => {
     const scene = pat.loadScene(idx);
     if (!scene) return;
@@ -130,6 +142,7 @@ export default function App() {
     });
   }, [pat, bpm, genre, modeName, arpeMode, currentSectionName, sound]);
 
+  // ── Project I/O ────────────────────────────────────────────────────────────
   const exportProject = useCallback(() => {
     pat.exportProject({ bpm, currentSectionName, projectName });
   }, [pat, bpm, currentSectionName, projectName]);
@@ -147,8 +160,33 @@ export default function App() {
     } finally { e.target.value = ''; }
   }, [pat]);
 
+  // ── Derived ────────────────────────────────────────────────────────────────
   const sectionColor = SECTION_COLORS[currentSectionName] ?? '#ffffff';
 
+  // Actions object passed to views — all real implementations now.
+  const perfActions = {
+    drop:    () => pat.regenerateSection('drop'),
+    break:   () => pat.regenerateSection('break'),
+    build:   () => pat.regenerateSection('build'),
+    groove:  () => pat.regenerateSection('groove'),
+    tension: () => pat.regenerateSection('tension'),
+    fill:    () => pat.regenerateSection('fill'),
+    intro:   () => pat.regenerateSection('intro'),
+    outro:   () => pat.regenerateSection('outro'),
+    mutate:          pat.mutate,
+    thinOut:         pat.thinOut,
+    thicken:         pat.thicken,
+    reharmonize:     pat.reharmonize,
+    shiftArp:        () => pat.shiftArp(arpeMode, setArpeMode),
+    randomizeNotes:  pat.randomizeSynthNotes,
+    randomizeBass:   pat.randomizeBassNotes,
+    shiftNotesUp:    pat.shiftNotesUp,
+    shiftNotesDown:  pat.shiftNotesDown,
+    clear:           pat.clearPatterns,
+    regen:           () => pat.regenerateSection(currentSectionName),
+  };
+
+  // Props passed to views — explicit, no giant spread.
   const gridProps = {
     patterns: pat.patterns, bassLine: pat.bassLine, synthLine: pat.synthLine,
     laneLen: pat.laneLen, step: seq.visibleStep, page, setPage,
@@ -160,12 +198,14 @@ export default function App() {
     genre, currentSectionName, sectionColor, sectionColors: SECTION_COLORS,
     songArc, arcIdx, songActive, arpeMode, modeName,
     regenerateSection: pat.regenerateSection,
+    perfActions,
   };
 
   const sceneProps = { savedScenes: pat.savedScenes, saveScene, loadScene };
 
   return (
     <div className="app-shell">
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <header className="g-header">
         <div className="g-header__logo">
           <span className="g-header__logo-mark">◆</span>
@@ -193,7 +233,9 @@ export default function App() {
             <button className="g-transport__bpm-btn" onClick={() => setBpm(b => Math.min(220,b+1))}>+</button>
           </div>
 
-          <span className="g-transport__status">{audio.isReady ? '● audio' : '○ idle'} · {audio.status}</span>
+          <span className="g-transport__status">
+            {audio.isReady ? '● audio' : '○ idle'} · {audio.status}
+          </span>
 
           <button className={`play-btn${seq.isPlaying?' playing':''}`} onClick={toggleTransport}>
             {seq.isPlaying ? '■' : '▶'}
@@ -201,28 +243,65 @@ export default function App() {
         </div>
       </header>
 
+      {/* ── Views ───────────────────────────────────────────────────────────── */}
       <div className="view-root">
         {view === 'perform' && (
-          <PerformView {...gridProps} {...sectionProps} {...sceneProps} {...sound} />
+          <PerformView
+            {...gridProps}
+            {...sectionProps}
+            {...sceneProps}
+            master={sound.master}       setMaster={sound.setMaster}
+            space={sound.space}         setSpace={sound.setSpace}
+            tone={sound.tone}           setTone={sound.setTone}
+            drive={sound.drive}         setDrive={sound.setDrive}
+            grooveAmt={sound.grooveAmt} setGrooveAmt={sound.setGrooveAmt}
+            swing={sound.swing}         setSwing={sound.setSwing}
+          />
         )}
+
         {view === 'studio' && (
           <StudioView
             genre={genre}
-            {...gridProps} {...sectionProps} {...sceneProps} {...sound}
-            historyLen={pat.historyLen} undo={pat.undo}
+            {...gridProps}
+            {...sectionProps}
+            {...sceneProps}
+            master={sound.master}           setMaster={sound.setMaster}
+            space={sound.space}             setSpace={sound.setSpace}
+            tone={sound.tone}               setTone={sound.setTone}
+            drive={sound.drive}             setDrive={sound.setDrive}
+            compress={sound.compress}       setCompress={sound.setCompress}
+            grooveAmt={sound.grooveAmt}     setGrooveAmt={sound.setGrooveAmt}
+            swing={sound.swing}             setSwing={sound.setSwing}
+            humanize={sound.humanize}       setHumanize={sound.setHumanize}
+            noiseMix={sound.noiseMix}       setNoiseMix={sound.setNoiseMix}
+            bassFilter={sound.bassFilter}   setBassFilter={sound.setBassFilter}
+            synthFilter={sound.synthFilter} setSynthFilter={sound.setSynthFilter}
+            drumDecay={sound.drumDecay}     setDrumDecay={sound.setDrumDecay}
+            bassSubAmt={sound.bassSubAmt}   setBassSubAmt={sound.setBassSubAmt}
+            fmIdx={sound.fmIdx}             setFmIdx={sound.setFmIdx}
+            polySynth={sound.polySynth}     setPolySynth={sound.setPolySynth}
+            bassStack={sound.bassStack}     setBassStack={sound.setBassStack}
+            grooveProfile={sound.grooveProfile} setGrooveProfile={sound.setGrooveProfile}
+            bassPreset={sound.bassPreset}           applyBassPreset={sound.applyBassPreset}
+            synthPreset={sound.synthPreset}         applySynthPreset={sound.applySynthPreset}
+            drumPreset={sound.drumPreset}           applyDrumPreset={sound.applyDrumPreset}
+            performancePreset={sound.performancePreset} applyPerformancePreset={sound.applyPerformancePreset}
+            historyLen={pat.historyLen}   undo={pat.undo}
             clearPattern={pat.clearPatterns}
-            recState={audio.recState} recordings={audio.recordings}
+            recState={audio.recState}     recordings={audio.recordings}
             startRec={() => audio.startRecording(projectName)}
             stopRec={audio.stopRecording}
             exportJSON={exportProject}
-            importRef={importRef} importJSON={handleImport}
-            projectName={projectName} setProjectName={setProjectName}
+            importRef={importRef}         importJSON={handleImport}
+            projectName={projectName}     setProjectName={setProjectName}
           />
         )}
+
         {view === 'song' && (
           <SongView
             genre={genre} bpm={bpm}
-            {...sectionProps} {...sceneProps}
+            {...sectionProps}
+            {...sceneProps}
             SECTIONS={SECTIONS}
             triggerSection={pat.regenerateSection}
             startSongArc={startSongArc}
