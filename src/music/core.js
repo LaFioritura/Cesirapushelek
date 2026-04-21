@@ -443,125 +443,272 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
     true, // counterpoint: synth prefers off-beats relative to bass motif
   );
 
+  const phraseW = [1, 0.75, 0.92, 0.68]; // phrase weight per 8-step segment
+
   const p = {
-    kick: mkSteps(),
-    snare: mkSteps(),
-    hat: mkSteps(),
-    bass: mkSteps(),
-    synth: mkSteps(),
+    kick: mkSteps(), snare: mkSteps(),
+    hat: mkSteps(), bass: mkSteps(), synth: mkSteps(),
   };
 
-  const bar = 16;
-  const phraseW = [1, 0.75, 0.92, 0.68];
+  // ── Euclidean rhythm helper ────────────────────────────────────────────────
+  // Distributes `hits` evenly across `steps` (Bjorklund algorithm).
+  function euclidean(hits, steps) {
+    if (hits <= 0) return Array(steps).fill(false);
+    if (hits >= steps) return Array(steps).fill(true);
+    let pattern = Array.from({ length: steps }, (_, i) =>
+      Math.floor((i * hits) / steps) > Math.floor(((i - 1) * hits) / steps)
+    );
+    return pattern;
+  }
 
-  for (const lane of ['kick', 'snare', 'hat', 'bass', 'synth']) {
+  // ── Genre-specific kick patterns (2 bars = 32 steps at 16 per bar) ─────────
+  // Each is a 16-step boolean template. Bar 2 may vary from bar 1.
+  const KICK_PATTERNS = {
+    // 4-on-the-floor variants
+    every4:      [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+    every4ghost: [1,0,0,0, 1,0,0,1, 1,0,0,0, 1,0,1,0], // with ghost hits
+    // Syncopated / pushed
+    push:        [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,1,0],
+    techno2:     [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,0,0,0],
+    // Sparse
+    sparse:      [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+    cinematic:   [1,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0],
+    // Breakbeat / syncopated
+    dnb:         [1,0,0,0, 0,0,1,0, 0,0,1,0, 0,1,0,0],
+    jungle:      [1,0,0,1, 0,0,0,0, 1,0,0,0, 0,0,1,0],
+    // Triplet feel
+    halftime:    [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,1,0,0],
+    // Acid / irregular
+    acid:        [1,0,0,0, 1,0,1,0, 1,0,0,0, 1,1,0,0],
+  };
+
+  // Pick kick pattern based on genre + section
+  function pickKickPattern(genre, sectionName) {
+    const map = {
+      techno:      ['every4', 'every4ghost', 'techno2'],
+      house:       ['every4', 'every4ghost', 'every4'],
+      ambient:     ['sparse', 'cinematic', 'sparse'],
+      dnb:         ['dnb', 'jungle', 'dnb'],
+      acid:        ['acid', 'every4ghost', 'acid'],
+      industrial:  ['every4', 'techno2', 'every4ghost'],
+      experimental:['push', 'halftime', 'dnb'],
+      cinematic:   ['cinematic', 'sparse', 'halftime'],
+    };
+    const options = map[genre] || ['every4'];
+    // Sections influence pattern choice
+    if (sectionName === 'drop' || sectionName === 'groove') {
+      return options[0]; // most active
+    }
+    if (sectionName === 'break' || sectionName === 'outro') {
+      return options[Math.min(2, options.length - 1)]; // most sparse
+    }
+    return pick(options);
+  }
+
+  // ── Snare patterns ─────────────────────────────────────────────────────────
+  const SNARE_PATTERNS = {
+    backbeat:    [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], // beats 2 & 4
+    backbeatAlt: [0,0,0,0, 1,0,0,0, 0,0,1,0, 1,0,0,0], // 2 & 4 + ghost
+    breakbeat:   [0,0,1,0, 0,1,0,0, 1,0,0,1, 0,0,1,0],
+    halftime:    [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0], // snare on 3 only
+    sparse:      [0,0,0,0, 1,0,0,0, 0,0,0,0, 0,0,0,0],
+    dnb:         [0,0,1,0, 0,0,0,1, 0,1,0,0, 0,1,0,0],
+  };
+
+  function pickSnarePattern(genre, sectionName) {
+    const map = {
+      techno:      ['backbeat', 'backbeatAlt'],
+      house:       ['backbeat', 'backbeatAlt'],
+      ambient:     ['sparse', 'halftime'],
+      dnb:         ['dnb', 'breakbeat'],
+      acid:        ['backbeat', 'backbeatAlt'],
+      industrial:  ['backbeat', 'backbeatAlt'],
+      experimental:['breakbeat', 'dnb'],
+      cinematic:   ['halftime', 'sparse'],
+    };
+    if (sectionName === 'break') return 'halftime';
+    if (sectionName === 'fill')  return 'breakbeat';
+    const opts = map[genre] || ['backbeat'];
+    return pick(opts);
+  }
+
+  // ── Build kick & snare from patterns ──────────────────────────────────────
+  const kickPat  = KICK_PATTERNS[pickKickPattern(genre, sectionName)] || KICK_PATTERNS.every4;
+  const snarePat = SNARE_PATTERNS[pickSnarePattern(genre, sectionName)] || SNARE_PATTERNS.backbeat;
+  const ll_k     = laneLen.kick;
+  const ll_s     = laneLen.snare;
+
+  for (let i = 0; i < ll_k; i++) {
+    const pos  = i % 16;
+    const bar  = Math.floor(i / 16);
+    const pb   = Math.floor(i / 8) % 4;
+    const pw   = phraseW[pb];
+    let hit    = kickPat[pos];
+
+    // Bar 2 variation: occasionally syncopate or add anticipation
+    if (bar % 2 === 1 && sectionName !== 'drop') {
+      // Add a kick anticipation on step 14 (one step before bar line) ~30% of the time
+      if (pos === 14 && rnd() < 0.30 + chaos * 0.2) hit = true;
+      // Occasional extra kick on step 10
+      if (pos === 10 && gd.kick !== 'sparse' && rnd() < 0.22 + chaos * 0.15) hit = true;
+    }
+
+    // Fill: last bar (bar 3 of 4) gets denser kick
+    if (pb === 3 && sectionName !== 'break') {
+      if (pos === 6 && rnd() < 0.35 + chaos * 0.2) hit = true;
+      if (pos === 14 && rnd() < 0.45) hit = true;
+    }
+
+    // Ghost notes: quiet hits between main beats
+    const isGhost = !hit && (pos % 2 === 1) && rnd() < noiseMix * 0.12;
+
+    if (hit || isGhost) {
+      p.kick[i].on = true;
+      const vel = isGhost
+        ? clamp(0.28 + rnd() * 0.15, 0.2, 0.42)
+        : clamp(velCurve(sec.vel, i, ll_k, pw) * sec.kM, 0.35, 1);
+      p.kick[i].v = vel;
+      p.kick[i].p = clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
+    }
+  }
+
+  // Guarantee kick on beat 1 of every bar unless section says don't
+  if (sectionName !== 'break' && sectionName !== 'outro') {
+    for (let i = 0; i < ll_k; i += 16) { p.kick[i].on = true; p.kick[i].v = 1; }
+  }
+
+  for (let i = 0; i < ll_s; i++) {
+    const pos = i % 16;
+    const bar = Math.floor(i / 16);
+    const pb  = Math.floor(i / 8) % 4;
+    const pw  = phraseW[pb];
+    let hit   = snarePat[pos];
+
+    // Ghost snare: very quiet hits between main snare beats
+    const isGhost = !hit && (pos % 2 === 0) && pos !== 0 && pos !== 8
+      && rnd() < 0.10 + chaos * 0.08;
+
+    // Anticipation: snare slightly early before bar 2 or 4
+    if (pos === 15 && bar % 2 === 0 && rnd() < 0.18 + chaos * 0.1) hit = true;
+
+    // Fill density boost on last bar
+    if (pb === 3 && rnd() < 0.30 + chaos * 0.20) hit = hit || (pos % 2 === 0 && pos !== 0);
+
+    if (hit || isGhost) {
+      p.snare[i].on = true;
+      const vel = isGhost
+        ? clamp(0.20 + rnd() * 0.12, 0.18, 0.35)
+        : clamp(velCurve(sec.vel, i, ll_s, pw) * sec.sM, 0.35, 1);
+      p.snare[i].v = vel;
+      p.snare[i].p = clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
+    }
+  }
+
+  // ── Hat: euclidean + genre ─────────────────────────────────────────────────
+  const ll_h = laneLen.hat;
+  const hatP = gd.hatPattern;
+
+  // Choose euclidean density based on genre + section
+  const hatHits = hatP === '16th' ? ll_h
+    : hatP === 'offbeat'   ? Math.floor(ll_h / 2)
+    : hatP === 'breakbeat' ? Math.floor(ll_h * (0.4 + chaos * 0.2))
+    : hatP === 'noise'     ? Math.floor(ll_h * (0.5 + chaos * 0.2))
+    : hatP === 'sparse'    ? Math.floor(ll_h * 0.18)
+    : Math.floor(ll_h * (0.35 + density * 0.25));
+
+  const hatEuc = euclidean(Math.round(hatHits), ll_h);
+
+  for (let i = 0; i < ll_h; i++) {
+    const pos = i % 16;
+    const pb  = Math.floor(i / 8) % 4;
+    const pw  = phraseW[pb];
+    let hit   = hatP === 'offbeat' ? (i % 2 === 1) : hatEuc[i];
+
+    // Open hat: on the 8th 16th note of each bar occasionally
+    const isOpen = hit && (pos === 8 || pos === 14) && rnd() < 0.22 + chaos * 0.12;
+
+    // Ghost hat: add quiet hats on off-positions
+    const isGhost = !hit && (pos % 4 !== 0) && rnd() < 0.06 + noiseMix * 0.06;
+
+    if (hit || isGhost) {
+      p.hat[i].on = true;
+      const vel = isGhost
+        ? clamp(0.18 + rnd() * 0.10, 0.15, 0.28)
+        : clamp(velCurve(sec.vel, i, ll_h, pw) * sec.hM, 0.30, 1);
+      p.hat[i].v = vel;
+      p.hat[i].p = isOpen ? 1 : clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
+    }
+  }
+
+  // ── Bass & synth rhythmic placement ───────────────────────────────────────
+  const bar_b = 16;
+  for (const lane of ['bass', 'synth']) {
     const ll = laneLen[lane];
-    const lmKey =
-      lane === 'kick'
-        ? 'kM'
-        : lane === 'snare'
-          ? 'sM'
-          : lane === 'hat'
-            ? 'hM'
-            : lane === 'bass'
-              ? 'bM'
-              : 'syM';
+    const lm = lane === 'bass' ? sec.bM : sec.syM;
+    const maxD = lane === 'bass' ? 0.55 : 0.45;
 
-    const lm = sec[lmKey] || 1;
-    const dm = density * lm;
-    const maxDensity = lane === 'bass' ? 0.55 : lane === 'synth' ? 0.45 : 1.0;
+    for (let i = 0; i < ll; i++) {
+      const pos = i % bar_b;
+      const pb  = Math.floor(i / 8) % 4;
+      const pw  = phraseW[pb];
+      let hit   = false;
 
-    for (let i = 0; i < ll; i += 1) {
-      const pos = i % bar;
-      const pb = Math.floor(i / 8) % 4;
-      const strong = pos === 0 || pos === 8;
-      const bb = pos === 4 || pos === 12;
-      const ob = pos % 2 === 1;
-      const pw = phraseW[pb];
-      let hit = false;
-
-      if (lane === 'kick') {
-        if (gd.kick === 'every4' && pos % 4 === 0) hit = true;
-        else if (gd.kick === 'syncopated' && (pos === 0 || pos === 10 || pos === 14)) hit = true;
-        else if (gd.kick === 'sparse' && (pos === 0 || pos === 12)) hit = true;
-        else if (gd.kick === 'irregular') hit = pos === 0 || (rnd() < dm * 0.3 * pw);
-        else if (strong || rnd() < (groove.kB + dm * 0.18) * pw) hit = true;
-      } else if (lane === 'snare') {
-        if (gd.hatPattern === 'breakbeat') {
-          hit = rnd() < (groove.sB + dm * 0.15) * (1 + pb * 0.2);
-        } else if (bb || rnd() < (groove.sB + dm * 0.08 + (bb ? 0.28 : 0)) * (1.05 - pw * 0.16)) {
-          hit = true;
-        }
-      } else if (lane === 'hat') {
-        const hatP = gd.hatPattern;
-        if (hatP === '16th') hit = true;
-        else if (hatP === 'offbeat') hit = ob;
-        else if (hatP === 'breakbeat') hit = rnd() < (groove.hB + dm * 0.22) * (0.8 + pw * 0.25);
-        else if (hatP === 'noise') hit = rnd() < 0.55 + dm * 0.18;
-        else if (hatP === 'sparse') hit = rnd() < 0.2 + dm * 0.1;
-        else hit = rnd() < (groove.hB + dm * 0.18) * (0.82 + pw * 0.22);
-
-        if (hit && rnd() < chaos * 0.3) p.hat[i].p = 0.45 + rnd() * 0.4;
-      } else if (lane === 'bass') {
-        const phraseAnchor = pos === 0 || pos === 4 || pos === 8 || pos === 12;
-        const prob = phraseAnchor ? 0.82 * lm : (groove.bB + dm * 0.12) * pw * 0.7;
-        hit = rnd() < Math.min(prob, maxDensity);
-      } else if (lane === 'synth') {
-        const phraseOn = pos === 2 || pos === 6 || pos === 10 || pos === 14;
-        const prob = phraseOn ? 0.65 * lm : (groove.syB + dm * 0.08) * pw * 0.5;
-        hit = (rnd() < Math.min(prob, maxDensity) && !strong)
-          || (pb === 3 && rnd() < 0.18 + chaos * 0.15);
+      if (lane === 'bass') {
+        // Bass: strong beat anchors + approach notes
+        const isAnchor  = pos === 0 || pos === 8;
+        const isApproach = pos === 14 || pos === 6; // one before anchor
+        const isMid     = pos === 4 || pos === 12;
+        const prob = isAnchor ? 0.88 * lm
+          : isApproach ? 0.35 * lm * chaos
+          : isMid      ? 0.55 * lm
+          : (groove.bB + density * 0.12) * pw * 0.6;
+        hit = rnd() < Math.min(prob, maxD);
+      } else {
+        // Synth: off-beat preference (counterpoint), avoid kick beats
+        const kickBeat   = kickPat[pos % 16];
+        const isOffBeat  = pos % 2 === 1;
+        const isPhrase   = pos === 2 || pos === 6 || pos === 10 || pos === 14;
+        const penaltyIfKick = kickBeat ? 0.5 : 1;
+        const prob = isPhrase ? 0.65 * lm * penaltyIfKick
+          : isOffBeat ? (groove.syB + density * 0.10) * pw * 0.55 * penaltyIfKick
+          : 0.08 * lm;
+        hit = (rnd() < Math.min(prob, maxD) && (!kickBeat || rnd() < 0.3))
+          || (pb === 3 && rnd() < 0.18 + chaos * 0.12);
       }
 
       if (hit) {
-        p[lane][i].on = true;
-        p[lane][i].p = clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
-        p[lane][i].v = clamp(velCurve(sec.vel, i, ll, pw), 0.22, 1);
-
-        if (lane === 'bass') p[lane][i].l = bassLengths[i] || sec.lb;
-        else if (lane === 'synth') p[lane][i].l = synthLengths[i] || sec.lb;
-        else p[lane][i].l = 1;
+        p[lane][i].on  = true;
+        p[lane][i].v   = clamp(velCurve(sec.vel, i, ll, phraseW[Math.floor(i/8)%4]), 0.22, 1);
+        p[lane][i].p   = clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
+        p[lane][i].l   = lane === 'bass' ? (bassLengths[i] || sec.lb) : (synthLengths[i] || sec.lb);
       }
     }
   }
 
-  for (let i = 0; i < laneLen.kick; i += 16) {
-    p.kick[i].on = true;
-  }
-
-  if (gd.kick !== 'sparse' && sectionName !== 'break') {
-    for (let i = 0; i < laneLen.snare; i += 16) {
-      if (i + 4 < laneLen.snare) p.snare[i + 4].on = true;
-      if (i + 12 < laneLen.snare) p.snare[i + 12].on = true;
-    }
-  }
-
+  // ── Tie held notes ─────────────────────────────────────────────────────────
   for (const lane of ['bass', 'synth']) {
     const ll = laneLen[lane];
-    for (let i = 0; i < ll; i += 1) {
+    for (let i = 0; i < ll; i++) {
       if (p[lane][i].on && p[lane][i].l > 1) {
         const holdEnd = Math.min(ll - 1, i + Math.floor(p[lane][i].l));
-        for (let j = i + 1; j <= holdEnd; j += 1) {
-          p[lane][j].tied = true;
-          p[lane][j].on = false;
+        for (let j = i + 1; j <= holdEnd; j++) {
+          p[lane][j].tied = true; p[lane][j].on = false;
         }
       }
     }
   }
 
-  const mp = Math.floor(chaos * 5);
-  for (let m = 0; m < mp; m += 1) {
-    const ln = pick(['kick', 'snare', 'hat']);
-    const ll = laneLen[ln];
+  // ── Chaos mutations on drums (after pattern is set) ────────────────────────
+  // Only touch non-anchor steps to preserve the rhythmic skeleton.
+  const mutations = Math.floor(chaos * 4);
+  for (let m = 0; m < mutations; m++) {
+    const ln  = pick(['hat', 'snare']);
+    const ll  = laneLen[ln];
     const pos = Math.floor(rnd() * ll);
-
-    if (ln === 'hat') {
-      p.hat[pos].on = !p.hat[pos].on;
-    } else if (ln === 'kick') {
-      if (pos % 4 !== 0) p.kick[pos].on = rnd() < 0.35 + chaos * 0.18;
-    } else {
-      p.snare[pos].on = !p.snare[pos].on && pos % 4 !== 0;
-    }
+    // Skip anchor positions
+    if (pos % 16 === 0 || pos % 16 === 4 || pos % 16 === 12) continue;
+    p[ln][pos].on = !p[ln][pos].on;
+    if (p[ln][pos].on) p[ln][pos].v = 0.35 + rnd() * 0.3;
   }
 
   const lb = lastBassNote || bassLine[laneLen.bass - 1] || bp[0];
