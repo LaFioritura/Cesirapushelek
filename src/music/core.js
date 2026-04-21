@@ -401,10 +401,14 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
     : gd.density < 0.4                   ? 'float'
     :                                      'steady';
 
-  const groove = GROOVE_MAPS[grooveName];
-  const mode   = MODES[modeName] || MODES.minor;
-  const bp     = mode.b;
-  const sp     = mode.s;
+  const groove  = GROOVE_MAPS[grooveName];
+  const mode    = MODES[modeName] || MODES.minor;
+  const bp      = mode.b;
+  const sp      = mode.s;
+  const density = gd.density;
+  const chaos   = gd.chaos;
+  // noiseMix derived from genre chaos — used for ghost note probability
+  const noiseMix = clamp(chaos * 0.5 + density * 0.2, 0.05, 0.6);
 
   const laneLen = { kick: 16, snare: 16, hat: 32, bass: 32, synth: 32 };
   if (genre === 'dnb') {
@@ -425,9 +429,6 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
     laneLen.bass = 64;
     laneLen.synth = 64;
   }
-
-  const density = gd.density;
-  const chaos = gd.chaos;
 
   const bassLb =
     sec.lb * (sectionName === 'break' ? 2.5 : sectionName === 'drop' ? 0.8 : 1);
