@@ -12,148 +12,68 @@ export const lerp = (a, b, t) => a + (b - a) * t;
 // ─── GENRE DNA ────────────────────────────────────────────────────────────────
 export const GENRES = {
   techno: {
-    bpm: [128, 140],
-    kick: 'every4',
-    swing: 0.02,
-    atmosphere: 'dark industrial',
-    kickFreq: 80,
-    kickEnd: 30,
-    kickDecay: 0.22,
-    noiseColor: 'brown',
-    modes: ['phrygian', 'minor'],
-    density: 0.72,
-    chaos: 0.35,
-    bassMode: 'fm',
-    synthMode: 'lead',
+    bpm: [128, 140], kick: 'every4', swing: 0.02, atmosphere: 'dark industrial',
+    kickFreq: 80, kickEnd: 30, kickDecay: 0.22, noiseColor: 'brown',
+    modes: ['phrygian', 'minor'], density: 0.72, chaos: 0.35,
+    bassMode: 'fm', synthMode: 'lead',
     fxProfile: { drive: 0.3, space: 0.4, tone: 0.6 },
-    hatPattern: '16th',
-    description: 'Dark mechanical pulse',
+    hatPattern: '16th', description: 'Dark mechanical pulse',
   },
   house: {
-    bpm: [120, 130],
-    kick: 'every4',
-    swing: 0.06,
-    atmosphere: 'warm Chicago',
-    kickFreq: 90,
-    kickEnd: 40,
-    kickDecay: 0.2,
-    noiseColor: 'pink',
-    modes: ['dorian', 'mixo'],
-    density: 0.65,
-    chaos: 0.28,
-    bassMode: 'sub',
-    synthMode: 'rhodes',
+    bpm: [120, 130], kick: 'every4', swing: 0.06, atmosphere: 'warm Chicago',
+    kickFreq: 90, kickEnd: 40, kickDecay: 0.2, noiseColor: 'pink',
+    modes: ['dorian', 'mixo'], density: 0.65, chaos: 0.28,
+    bassMode: 'sub', synthMode: 'rhodes',
     fxProfile: { drive: 0.1, space: 0.55, tone: 0.8 },
-    hatPattern: 'offbeat',
-    description: 'Warm soulful groove',
+    hatPattern: 'offbeat', description: 'Warm soulful groove',
   },
   ambient: {
-    bpm: [70, 90],
-    kick: 'sparse',
-    swing: 0.0,
-    atmosphere: 'oceanic',
-    kickFreq: 60,
-    kickEnd: 25,
-    kickDecay: 0.35,
-    noiseColor: 'pink',
-    modes: ['lydian', 'dorian'],
-    density: 0.25,
-    chaos: 0.55,
-    bassMode: 'drone',
-    synthMode: 'pad',
+    bpm: [70, 90], kick: 'sparse', swing: 0.0, atmosphere: 'oceanic',
+    kickFreq: 60, kickEnd: 25, kickDecay: 0.35, noiseColor: 'pink',
+    modes: ['lydian', 'dorian'], density: 0.25, chaos: 0.55,
+    bassMode: 'drone', synthMode: 'pad',
     fxProfile: { drive: 0.0, space: 0.9, tone: 0.7 },
-    hatPattern: 'sparse',
-    description: 'Textural spatial sound',
+    hatPattern: 'sparse', description: 'Textural spatial sound',
   },
   dnb: {
-    bpm: [160, 180],
-    kick: 'syncopated',
-    swing: 0.04,
-    atmosphere: 'jungle pressure',
-    kickFreq: 95,
-    kickEnd: 35,
-    kickDecay: 0.14,
-    noiseColor: 'white',
-    modes: ['minor', 'dorian'],
-    density: 0.78,
-    chaos: 0.55,
-    bassMode: 'grit',
-    synthMode: 'glass',
+    bpm: [160, 180], kick: 'syncopated', swing: 0.04, atmosphere: 'jungle pressure',
+    kickFreq: 95, kickEnd: 35, kickDecay: 0.14, noiseColor: 'white',
+    modes: ['minor', 'dorian'], density: 0.78, chaos: 0.55,
+    bassMode: 'reese', synthMode: 'glass',
     fxProfile: { drive: 0.35, space: 0.3, tone: 0.5 },
-    hatPattern: 'breakbeat',
-    description: 'Fast broken jungle',
+    hatPattern: 'breakbeat', description: 'Fast broken jungle',
   },
   acid: {
-    bpm: [125, 138],
-    kick: 'every4',
-    swing: 0.05,
-    atmosphere: '303 acid',
-    kickFreq: 85,
-    kickEnd: 32,
-    kickDecay: 0.18,
-    noiseColor: 'white',
-    modes: ['phrygian', 'chroma'],
-    density: 0.68,
-    chaos: 0.65,
-    bassMode: 'bit',
-    synthMode: 'mist',
+    bpm: [125, 138], kick: 'every4', swing: 0.05, atmosphere: '303 acid',
+    kickFreq: 85, kickEnd: 32, kickDecay: 0.18, noiseColor: 'white',
+    modes: ['phrygian', 'chroma'], density: 0.68, chaos: 0.65,
+    bassMode: 'acid303', synthMode: 'stab',
     fxProfile: { drive: 0.45, space: 0.35, tone: 0.4 },
-    hatPattern: '16th',
-    description: 'Squelching resonant acid',
+    hatPattern: '16th', description: 'Squelching resonant acid',
   },
   industrial: {
-    bpm: [130, 150],
-    kick: 'every4',
-    swing: 0.0,
-    atmosphere: 'concrete noise',
-    kickFreq: 70,
-    kickEnd: 28,
-    kickDecay: 0.28,
-    noiseColor: 'brown',
-    modes: ['chroma', 'phrygian'],
-    density: 0.8,
-    chaos: 0.75,
-    bassMode: 'fold',
-    synthMode: 'air',
+    bpm: [130, 150], kick: 'every4', swing: 0.0, atmosphere: 'concrete noise',
+    kickFreq: 70, kickEnd: 28, kickDecay: 0.28, noiseColor: 'brown',
+    modes: ['chroma', 'phrygian'], density: 0.8, chaos: 0.75,
+    bassMode: 'moog', synthMode: 'air',
     fxProfile: { drive: 0.55, space: 0.25, tone: 0.35 },
-    hatPattern: 'noise',
-    description: 'Harsh mechanical noise',
+    hatPattern: 'noise', description: 'Harsh mechanical noise',
   },
   experimental: {
-    bpm: [80, 160],
-    kick: 'irregular',
-    swing: 0.08,
-    atmosphere: 'avant-garde',
-    kickFreq: 100,
-    kickEnd: 45,
-    kickDecay: 0.25,
-    noiseColor: 'pink',
-    modes: ['chroma', 'lydian'],
-    density: 0.45,
-    chaos: 0.88,
-    bassMode: 'wet',
-    synthMode: 'supersaw',
+    bpm: [80, 160], kick: 'irregular', swing: 0.08, atmosphere: 'avant-garde',
+    kickFreq: 100, kickEnd: 45, kickDecay: 0.25, noiseColor: 'pink',
+    modes: ['chroma', 'lydian'], density: 0.45, chaos: 0.88,
+    bassMode: 'wet', synthMode: 'vox',
     fxProfile: { drive: 0.2, space: 0.7, tone: 0.6 },
-    hatPattern: 'random',
-    description: 'Unpredictable textural',
+    hatPattern: 'random', description: 'Unpredictable textural',
   },
   cinematic: {
-    bpm: [85, 110],
-    kick: 'sparse',
-    swing: 0.03,
-    atmosphere: 'epic orchestral',
-    kickFreq: 75,
-    kickEnd: 30,
-    kickDecay: 0.32,
-    noiseColor: 'pink',
-    modes: ['minor', 'lydian'],
-    density: 0.38,
-    chaos: 0.35,
-    bassMode: 'drone',
-    synthMode: 'ether',
+    bpm: [85, 110], kick: 'sparse', swing: 0.03, atmosphere: 'epic orchestral',
+    kickFreq: 75, kickEnd: 30, kickDecay: 0.32, noiseColor: 'pink',
+    modes: ['minor', 'lydian'], density: 0.38, chaos: 0.35,
+    bassMode: 'upright', synthMode: 'ether',
     fxProfile: { drive: 0.05, space: 0.85, tone: 0.85 },
-    hatPattern: 'sparse',
-    description: 'Dramatic cinematic score',
+    hatPattern: 'sparse', description: 'Dramatic cinematic score',
   },
 };
 
@@ -337,37 +257,41 @@ export function velCurve(type, i, total, pw) {
 
 // ─── MELODIC PHRASE BUILDER ───────────────────────────────────────────────────
 //
-// Builds a line of `steps` notes that:
-//   - derives a 4-note motif from the first chord, starting from startNote
-//   - applies arp() to chord tones at each step for the chosen arpeMode
-//   - uses voice leading (±1–2 steps in scale) for smooth motion
-//   - introduces passing tones via chaos probability
-//   - varies note lengths (note: short, long, held) driven by section lb
-//   - tiles the result to fill MAX_STEPS
+// Builds a line of `steps` notes with:
+//   - 8-note motif (double the previous 4) for more musical variety
+//   - Progressive variation: motif transforms slightly each time it repeats
+//   - Tension/resolution: penultimate chord → leading tone, first chord → root
+//   - Contrapuntal offset option: if isCounterpoint, hit off-beats vs the motif
+//   - Voice leading ±1-2 scale steps with chord-tone bias
+//   - Passing tones scaled by chaos parameter
+//   - Note lengths driven by section lenBias
 //
-export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode, lenBias, startNote) {
+export function buildMelodicLine(
+  pool, chordProgression, steps, chaos, arpeMode, lenBias, startNote,
+  isCounterpoint = false,
+) {
   const line     = mkNotes(pool[0]);
   const lengths  = Array(steps).fill(1);
   const chordLen = Math.max(1, Math.floor(steps / chordProgression.length));
 
-  // Build motif anchored to startNote
+  // ── Build 8-note motif ───────────────────────────────────────────────────────
   const firstPool = chordNotes(chordProgression[0], pool);
   const startIdx  = startNote ? Math.max(0, pool.indexOf(startNote)) : 0;
   let   prev      = pool[clamp(startIdx, 0, pool.length - 1)];
 
-  const MOTIF_LEN = 4;
+  const MOTIF_LEN = 8;
   const motif     = [];
 
   for (let m = 0; m < MOTIF_LEN; m++) {
     const r = rnd();
-    if (r < 0.10) {
-      // Rest — repeat previous (held)
+    if (r < 0.08) {
+      // Rest (held) — keep prev
       motif.push(prev);
-    } else if (r < 0.25) {
-      // Repeat
+    } else if (r < 0.22) {
+      // Exact repeat
       motif.push(prev);
-    } else {
-      // Move to nearest chord tone using arp mode
+    } else if (r < 0.55) {
+      // Arp-based movement on chord tones
       const arpNote = arp(firstPool, arpeMode, m);
       const nearest = pool.reduce((best, n) =>
         Math.abs(pool.indexOf(n) - pool.indexOf(arpNote)) <
@@ -375,10 +299,25 @@ export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode,
       , firstPool[0] || pool[0]);
       prev = nearest;
       motif.push(nearest);
+    } else {
+      // Step-wise voice lead within first chord
+      const stepped = voiceLead(prev, firstPool);
+      prev = stepped;
+      motif.push(stepped);
     }
   }
 
-  let lastNote = motif[0] || pool[0];
+  // ── Build variation of motif (shift each note ±1 scale degree) ────────────
+  // Used on second and subsequent repetitions of the motif for development.
+  const motifVariant = motif.map(n => {
+    const idx = pool.indexOf(n);
+    if (idx === -1) return n;
+    const delta = rnd() < 0.5 ? 1 : -1;
+    return pool[clamp(idx + delta, 0, pool.length - 1)];
+  });
+
+  let lastNote     = motif[0] || pool[0];
+  let motifRepeat  = 0; // counts how many full motif cycles we've done
 
   for (let i = 0; i < steps; i++) {
     const ci    = Math.floor(i / chordLen) % chordProgression.length;
@@ -386,50 +325,61 @@ export function buildMelodicLine(pool, chordProgression, steps, chaos, arpeMode,
     const cn    = chordNotes(chord, pool);
     if (!cn.length) { line[i] = lastNote; continue; }
 
-    // Tension: on the penultimate chord, bias toward scale degrees that
-    // want to resolve (7th → root, 4th → 3rd).
+    // Track motif repetitions for progressive variation
+    if (i > 0 && i % MOTIF_LEN === 0) motifRepeat++;
+    const useVariant = motifRepeat >= 2 && rnd() < 0.5;
+    const activMotif = useVariant ? motifVariant : motif;
+
+    // Contrapuntal offset: synth hits where bass doesn't and vice versa
+    const motifPos       = i % MOTIF_LEN;
+    const isMotifBeat    = motifPos % 2 === 0;
+    const contraSkip     = isCounterpoint && isMotifBeat && rnd() < 0.55;
+
     const isPreResolution = ci === chordProgression.length - 2;
-    const isResolution    = ci === 0 && i > 0;
+    const isResolution    = ci === 0 && i >= chordLen;
 
     let note;
     const r = rnd();
 
-    if (isResolution && r < 0.6) {
-      // Resolution — move toward root of first chord
+    if (contraSkip) {
+      // In counterpoint mode, prefer off-beat positions — use voice lead
+      note = voiceLead(lastNote, cn);
+    } else if (isResolution && r < 0.65) {
+      // Resolution: move toward root of first chord
       const root = chordNotes(chordProgression[0], pool)[0] || pool[0];
       note = pool.reduce((best, n) =>
         Math.abs(pool.indexOf(n) - pool.indexOf(root)) <
         Math.abs(pool.indexOf(best) - pool.indexOf(root)) ? n : best
       , lastNote);
-    } else if (isPreResolution && r < 0.45) {
-      // Tension — pick a note one scale step above the resolution target
+    } else if (isPreResolution && r < 0.50) {
+      // Tension: one step above resolution root (leading tone)
       const resRoot = chordNotes(chordProgression[0], pool)[0] || pool[0];
       const resIdx  = pool.indexOf(resRoot);
       note = pool[clamp(resIdx + 1, 0, pool.length - 1)];
-    } else if (r < 0.65) {
-      // Motif transposed to current chord via nearest chord tone
-      const motifNote = motif[i % MOTIF_LEN];
+    } else if (r < 0.60) {
+      // Motif (or variant) transposed to current chord
+      const motifNote = activMotif[motifPos];
       note = cn.reduce((best, n) =>
         Math.abs(pool.indexOf(n) - pool.indexOf(motifNote)) <
         Math.abs(pool.indexOf(best) - pool.indexOf(motifNote)) ? n : best
       , arp(cn, arpeMode, i));
-    } else if (r < 0.65 + chaos * 0.20) {
-      // Passing tone / chromatic approach (chaos-scaled)
+    } else if (r < 0.60 + chaos * 0.22) {
+      // Passing / chromatic (chaos-scaled)
       note = pick(pool);
     } else {
-      // Voice lead ±1–2 from last note, staying in chord
+      // Voice lead ±1-2 from last, staying on chord tone
       note = voiceLead(lastNote, cn);
     }
 
-    line[i]   = note;
-    lastNote  = note;
+    line[i]  = note;
+    lastNote = note;
 
-    // Note lengths: section drives the bias
+    // Note lengths
     const lr = rnd();
     let   l  = lenBias;
-    if      (lr < 0.42) l = lenBias;
-    else if (lr < 0.62) l = lenBias * 2;
-    else if (lr < 0.80) l = Math.max(0.5, lenBias * 0.5);
+    if      (lr < 0.40) l = lenBias;
+    else if (lr < 0.60) l = lenBias * 2;
+    else if (lr < 0.78) l = Math.max(0.5, lenBias * 0.5);
     else                l = Math.min(lenBias * 3, 8);
     lengths[i] = l;
   }
@@ -490,6 +440,7 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
 
   const { line: synthLine, lengths: synthLengths } = buildMelodicLine(
     sp, progression, laneLen.synth, chaos * 0.7, arpeMode, synthLb, null,
+    true, // counterpoint: synth prefers off-beats relative to bass motif
   );
 
   const p = {
