@@ -4,6 +4,7 @@ import { LANE_CLR, GENRE_CLR, SOUND_PRESETS } from './music/presets';
 import PerformView from './views/PerformView';
 import StudioView from './views/StudioView';
 import SongView from './views/SongView';
+import PresetSelect from './components/PresetSelect';
 export default function App(){
   // ── Audio
   const audioRef=useRef(null);
