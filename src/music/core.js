@@ -687,9 +687,9 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
       if (isGhost) {
         vel = clamp(0.15 + rnd() * 0.10, 0.12, 0.26);
       } else if (isLastBar && rollZone) {
-        vel = clamp(0.45 + ((pos - 10) / 5) * 0.35, 0.40, 0.85) * accent;
+        vel = clamp(0.45 + ((pos - 10) / 5) * 0.35, 0.40, 0.85);
       } else {
-        vel = clamp(velCurve(sec.vel, i, ll_h, pw) * sec.hM * buildRamp, 0.28, 1) * accent;
+        vel = clamp(velCurve(sec.vel, i, ll_h, pw) * sec.hM * buildRamp, 0.28, 1);
       }
       p.hat[i].v = vel;
       p.hat[i].p = isOpen ? 1 : clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
