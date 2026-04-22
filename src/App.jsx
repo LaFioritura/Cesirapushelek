@@ -82,6 +82,13 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genre]);
 
+  // Section trigger — generates pattern AND applies section automation.
+  // Declared early so keyboard shortcuts and song arc can reference it.
+  const triggerSection = useCallback((name) => {
+    pat.regenerateSection(name);
+    sound.applySectionAutomation(name);
+  }, [pat, sound]);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const SECTION_KEYS = { a:'drop', s:'break', d:'build', f:'groove', g:'tension', h:'fill' };
@@ -168,12 +175,6 @@ export default function App() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const sectionColor = SECTION_COLORS[currentSectionName] ?? '#ffffff';
-
-  // Section trigger — generates pattern AND applies section automation.
-  const triggerSection = useCallback((name) => {
-    pat.regenerateSection(name);
-    sound.applySectionAutomation(name);
-  }, [pat, sound]);
 
   // Actions object passed to views.
   const perfActions = {
