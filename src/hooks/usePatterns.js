@@ -77,7 +77,7 @@ export function usePatterns({ genre, modeName, arpeMode, setCurrentSectionName }
   const clearPatterns = useCallback(() => {
     pushUndo();
     setPatterns(emptyPatterns());
-    stepRef.current = 0;
+    // stepRef reset only via transport
   }, [pushUndo]);
 
   // lastBass tracks the final bass note of each section for voice continuity.
@@ -101,7 +101,9 @@ export function usePatterns({ genre, modeName, arpeMode, setCurrentSectionName }
     setSynthLine(result.synthLine);
     setLaneLen(result.laneLen);
     setCurrentSectionName(sectionName);
-    stepRef.current = 0;
+    // NOTE: stepRef is intentionally NOT reset here.
+    // Only the transport (start/stop) resets the step counter.
+    // Resetting here while playing causes lookahead buffer corruption.
   }, [genre, modeName, arpeMode, setCurrentSectionName, pushUndo]);
 
   // ── Scenes ─────────────────────────────────────────────────────────────────

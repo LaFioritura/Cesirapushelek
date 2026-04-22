@@ -177,18 +177,20 @@ export function useSequencer({
   const tickFnRef = useRef(null);
   tickFnRef.current = () => {
     if (!isPlayingRef.current || !audioRef.current) return;
-    const ctx = audioRef.current.ctx;
-    const now = ctx.currentTime;
+    try {
+      const ctx = audioRef.current.ctx;
+      const now = ctx.currentTime;
 
-    while (nextBeatTimeRef.current < now + LOOKAHEAD_SEC) {
-      const step = stepRef.current % MAX_STEPS;
-      scheduleStepRef.current(step, nextBeatTimeRef.current);
-      scheduledRef.current.push({ step, time: nextBeatTimeRef.current });
-      nextBeatTimeRef.current += 60 / bpmRef.current / 4;
-      stepRef.current = (stepRef.current + 1) % MAX_STEPS;
+      while (nextBeatTimeRef.current < now + LOOKAHEAD_SEC) {
+        const step = stepRef.current % MAX_STEPS;
+        scheduleStepRef.current(step, nextBeatTimeRef.current);
+        scheduledRef.current.push({ step, time: nextBeatTimeRef.current });
+        nextBeatTimeRef.current += 60 / bpmRef.current / 4;
+        stepRef.current = (stepRef.current + 1) % MAX_STEPS;
+      }
+    } catch (e) {
+      console.warn('[tick] error caught, continuing:', e?.message);
     }
-
-    // Re-schedule via stable wrapper — never captures stale closure
     tickTimerRef.current = setTimeout(() => tickFnRef.current(), TICK_MS);
   };
 
