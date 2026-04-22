@@ -708,46 +708,56 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
   }
 
   // ── Bass & synth rhythmic placement ───────────────────────────────────────
-  const bar_b = 16;
+  // Use the same RHYTHMIC_PHRASES templates that buildMelodicLine uses,
+  // so rhythm and melody are always in sync.
+  const BASS_PHRASE_KEY  = genre === 'acid' ? 'bass_acid'
+    : sectionName === 'drop' || sectionName === 'groove' ? 'bass_groove'
+    : sectionName === 'build' ? 'bass_push'
+    : sectionName === 'tension' ? 'bass_acid'
+    : 'bass_sparse';
+
+  const SYNTH_PHRASE_KEY = sectionName === 'drop' ? 'synth_wave'
+    : sectionName === 'groove' ? 'synth_call'
+    : sectionName === 'build' ? 'synth_dense'
+    : sectionName === 'tension' ? 'synth_offbeat'
+    : 'synth_stab';
+
+  // These must match the arrays in buildMelodicLine (copied here to avoid import cycle)
+  const PHRASES = {
+    bass_steady:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+    bass_groove:  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0],
+    bass_sparse:  [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,1,0,0],
+    bass_push:    [1,0,1,0, 0,1,0,0, 1,0,1,0, 0,0,1,0],
+    bass_acid:    [1,1,0,1, 1,0,1,0, 1,1,0,0, 1,0,1,1],
+    synth_call:   [0,0,1,0, 0,1,0,0, 0,0,1,0, 1,0,0,1],
+    synth_offbeat:[0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
+    synth_stab:   [0,0,0,1, 0,0,0,0, 0,0,0,1, 0,1,0,0],
+    synth_wave:   [0,1,0,0, 1,0,1,0, 0,1,0,0, 1,0,1,1],
+    synth_dense:  [0,1,1,0, 1,0,1,0, 0,1,1,0, 1,0,0,1],
+  };
+
+  const bassPhrase  = PHRASES[BASS_PHRASE_KEY]  || PHRASES.bass_groove;
+  const synthPhrase = PHRASES[SYNTH_PHRASE_KEY] || PHRASES.synth_call;
+
   for (const lane of ['bass', 'synth']) {
-    const ll = laneLen[lane];
-    const lm = lane === 'bass' ? sec.bM : sec.syM;
-    const maxD = lane === 'bass' ? 0.55 : 0.45;
+    const ll     = laneLen[lane];
+    const lm     = lane === 'bass' ? sec.bM : sec.syM;
+    const phrase = lane === 'bass' ? bassPhrase : synthPhrase;
 
     for (let i = 0; i < ll; i++) {
-      const pos = i % bar_b;
-      const pb  = Math.floor(i / 8) % 4;
-      const pw  = phraseW[pb];
-      let hit   = false;
+      const pos    = i % 16;
+      const pb     = Math.floor(i / 8) % 4;
+      const pw     = phraseW[pb];
+      const gated  = phrase[pos];
 
-      if (lane === 'bass') {
-        // Bass: strong beat anchors + approach notes
-        const isAnchor  = pos === 0 || pos === 8;
-        const isApproach = pos === 14 || pos === 6; // one before anchor
-        const isMid     = pos === 4 || pos === 12;
-        const prob = isAnchor ? 0.88 * lm
-          : isApproach ? 0.35 * lm * chaos
-          : isMid      ? 0.55 * lm
-          : (groove.bB + density * 0.12) * pw * 0.6;
-        hit = rnd() < Math.min(prob, maxD);
-      } else {
-        // Synth: off-beat preference (counterpoint), avoid kick beats
-        const kickBeat   = kickPat[pos % 16];
-        const isOffBeat  = pos % 2 === 1;
-        const isPhrase   = pos === 2 || pos === 6 || pos === 10 || pos === 14;
-        const penaltyIfKick = kickBeat ? 0.5 : 1;
-        const prob = isPhrase ? 0.65 * lm * penaltyIfKick
-          : isOffBeat ? (groove.syB + density * 0.10) * pw * 0.55 * penaltyIfKick
-          : 0.08 * lm;
-        hit = (rnd() < Math.min(prob, maxD) && (!kickBeat || rnd() < 0.3))
-          || (pb === 3 && rnd() < 0.18 + chaos * 0.12);
-      }
+      // Always fire on gated positions; occasionally add chaos hits on non-gated
+      const hit = gated || (rnd() < chaos * 0.15);
 
       if (hit) {
-        p[lane][i].on  = true;
-        p[lane][i].v   = clamp(velCurve(sec.vel, i, ll, phraseW[Math.floor(i/8)%4]), 0.22, 1);
-        p[lane][i].p   = clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
-        p[lane][i].l   = lane === 'bass' ? (bassLengths[i] || sec.lb) : (synthLengths[i] || sec.lb);
+        p[lane][i].on = true;
+        p[lane][i].v  = clamp(velCurve(sec.vel, i, ll, pw) * lm, 0.30, 1);
+        p[lane][i].p  = clamp(sec.pb + rnd() * (1 - sec.pb), sec.pb, 1);
+        p[lane][i].l  = lane === 'bass' ? (bassLengths[i] || sec.lb) : (synthLengths[i] || sec.lb);
       }
     }
   }
