@@ -26,7 +26,8 @@ export function playSynthVoice({
   if (!audioRef.current) return;
   if (activeNodesRef?.current >= 90) return;
   const a    = audioRef.current;
-  const f    = NOTE_FREQ[note] || 440;
+  const raw  = NOTE_FREQ[note];
+  const f    = (raw && isFinite(raw)) ? raw : 440;
   const dur  = clamp(stepSec()*lenSteps*0.92, 0.04, 6);
   const mode = GENRES[genre]?.synthMode || 'lead';
   const ms   = (dur+2.0)*1000;

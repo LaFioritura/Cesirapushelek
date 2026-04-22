@@ -49,7 +49,8 @@ export function playBassVoice({
   if (activeNodesRef?.current >= 90) return;
 
   const a    = audioRef.current;
-  const f    = NOTE_FREQ[note] || 110;
+  const raw  = NOTE_FREQ[note];
+  const f    = (raw && isFinite(raw)) ? raw : 110; // safe fallback
   const dur  = clamp(stepSec() * lenSteps * 0.90, 0.04, 6);
   const atk  = Math.min(0.008, dur * 0.05);
   const rel  = Math.max(0.04, dur * 0.86);
