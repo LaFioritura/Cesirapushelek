@@ -76,6 +76,12 @@ export default function App() {
     seq.isPlaying ? seq.stop() : seq.start();
   }, [audio, seq]);
 
+  // Apply genre profile automatically when genre changes.
+  useEffect(() => {
+    sound.applyGenreProfile(genre);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [genre]);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   useEffect(() => {
     const SECTION_KEYS = { a:'drop', s:'break', d:'build', f:'groove', g:'tension', h:'fill' };
@@ -85,8 +91,8 @@ export default function App() {
       if (k === ' ')   { e.preventDefault(); toggleTransport(); }
       if (k === 'z')   pat.undo();
       if (k === 'm')   pat.mutate();
-      if (k === 'r')   pat.regenerateSection(currentSectionName);
-      if (SECTION_KEYS[k]) pat.regenerateSection(SECTION_KEYS[k]);
+      if (k === 'r')   triggerSection(currentSectionName);
+      if (SECTION_KEYS[k]) triggerSection(SECTION_KEYS[k]);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -97,8 +103,8 @@ export default function App() {
     const song = buildSong(genre);
     setSongArc(song.arc); setArcIdx(0); setSongActive(true);
     setModeName(song.modeName); setArpeMode(song.arpeMode); setBpm(song.bpm);
-    pat.regenerateSection(song.arc[0] || 'groove');
-  }, [genre, pat]);
+    triggerSection(song.arc[0] || 'groove');
+  }, [genre, triggerSection]);
 
   const stopSongArc = useCallback(() => setSongActive(false), []);
 
@@ -110,7 +116,7 @@ export default function App() {
       const next = arcIdx + 1;
       if (next >= songArc.length) { setSongActive(false); return; }
       setArcIdx(next);
-      pat.regenerateSection(songArc[next]);
+      triggerSection(songArc[next]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seq.visibleStep]);
@@ -163,16 +169,22 @@ export default function App() {
   // ── Derived ────────────────────────────────────────────────────────────────
   const sectionColor = SECTION_COLORS[currentSectionName] ?? '#ffffff';
 
-  // Actions object passed to views — all real implementations now.
+  // Section trigger — generates pattern AND applies section automation.
+  const triggerSection = useCallback((name) => {
+    pat.regenerateSection(name);
+    sound.applySectionAutomation(name);
+  }, [pat, sound]);
+
+  // Actions object passed to views.
   const perfActions = {
-    drop:    () => pat.regenerateSection('drop'),
-    break:   () => pat.regenerateSection('break'),
-    build:   () => pat.regenerateSection('build'),
-    groove:  () => pat.regenerateSection('groove'),
-    tension: () => pat.regenerateSection('tension'),
-    fill:    () => pat.regenerateSection('fill'),
-    intro:   () => pat.regenerateSection('intro'),
-    outro:   () => pat.regenerateSection('outro'),
+    drop:    () => triggerSection('drop'),
+    break:   () => triggerSection('break'),
+    build:   () => triggerSection('build'),
+    groove:  () => triggerSection('groove'),
+    tension: () => triggerSection('tension'),
+    fill:    () => triggerSection('fill'),
+    intro:   () => triggerSection('intro'),
+    outro:   () => triggerSection('outro'),
     mutate:          pat.mutate,
     thinOut:         pat.thinOut,
     thicken:         pat.thicken,
@@ -183,7 +195,7 @@ export default function App() {
     shiftNotesUp:    pat.shiftNotesUp,
     shiftNotesDown:  pat.shiftNotesDown,
     clear:           pat.clearPatterns,
-    regen:           () => pat.regenerateSection(currentSectionName),
+    regen:           () => triggerSection(currentSectionName),
   };
 
   // Props passed to views — explicit, no giant spread.
@@ -197,7 +209,7 @@ export default function App() {
   const sectionProps = {
     genre, currentSectionName, sectionColor, sectionColors: SECTION_COLORS,
     songArc, arcIdx, songActive, arpeMode, modeName,
-    regenerateSection: pat.regenerateSection,
+    regenerateSection: triggerSection,
     perfActions,
   };
 
@@ -303,7 +315,7 @@ export default function App() {
             {...sectionProps}
             {...sceneProps}
             SECTIONS={SECTIONS}
-            triggerSection={pat.regenerateSection}
+            triggerSection={triggerSection}
             startSongArc={startSongArc}
             stopSongArc={stopSongArc}
           />

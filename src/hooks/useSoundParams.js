@@ -1,5 +1,8 @@
 import { useCallback, useState } from 'react';
-import { BASS_PRESETS, SYNTH_PRESETS, DRUM_PRESETS, PERFORMANCE_PRESETS } from '../music/presets';
+import {
+  BASS_PRESETS, SYNTH_PRESETS, DRUM_PRESETS, PERFORMANCE_PRESETS,
+  GENRE_PROFILES, SECTION_AUTOMATIONS,
+} from '../music/presets';
 
 /**
  * Owns all synthesis/FX parameter state and preset application logic.
@@ -68,6 +71,38 @@ export function useSoundParams() {
     if (p.space    !== undefined) setSpace(p.space);
   }, []);
 
+  // Apply full genre profile — sets all params to match the genre DNA.
+  const applyGenreProfile = useCallback((genre) => {
+    const p = GENRE_PROFILES[genre];
+    if (!p) return;
+    // Presets
+    if (p.bass)  applyBassPreset(p.bass);
+    if (p.synth) applySynthPreset(p.synth);
+    if (p.drum)  applyDrumPreset(p.drum);
+    if (p.perf)  applyPerformancePreset(p.perf);
+    // Timing / groove
+    if (p.grooveProfile !== undefined) setGrooveProfile(p.grooveProfile);
+    if (p.grooveAmt     !== undefined) setGrooveAmt(p.grooveAmt);
+    if (p.swing         !== undefined) setSwing(p.swing);
+    if (p.humanize      !== undefined) setHumanize(p.humanize);
+    // FX
+    if (p.space    !== undefined) setSpace(p.space);
+    if (p.tone     !== undefined) setTone(p.tone);
+    if (p.drive    !== undefined) setDrive(p.drive);
+    if (p.compress !== undefined) setCompress(p.compress);
+  }, [applyBassPreset, applySynthPreset, applyDrumPreset, applyPerformancePreset]);
+
+  // Apply section delta — nudges FX params based on section character.
+  // Called every time a section is triggered, on top of the base genre profile.
+  const applySectionAutomation = useCallback((sectionName) => {
+    const delta = SECTION_AUTOMATIONS[sectionName];
+    if (!delta) return;
+    if (delta.space    !== undefined) setSpace(prev    => Math.max(0, Math.min(1, prev    + delta.space)));
+    if (delta.drive    !== undefined) setDrive(prev    => Math.max(0, Math.min(1, prev    + delta.drive)));
+    if (delta.compress !== undefined) setCompress(prev => Math.max(0, Math.min(1, prev    + delta.compress)));
+    if (delta.grooveAmt!== undefined) setGrooveAmt(prev=> Math.max(0, Math.min(1, prev   + delta.grooveAmt)));
+  }, []);
+
   // Bulk restore — used by scene load.
   const restoreParams = useCallback((snap) => {
     if (!snap) return;
@@ -110,6 +145,8 @@ export function useSoundParams() {
     // Presets
     bassPreset, synthPreset, drumPreset, performancePreset,
     applyBassPreset, applySynthPreset, applyDrumPreset, applyPerformancePreset,
+    // Genre / section automation
+    applyGenreProfile, applySectionAutomation,
     // Bulk restore
     restoreParams,
   };
