@@ -64,10 +64,13 @@ export function playKick({ audioRef, getLaneGain, genre, drumDecay, noiseMix,
   const a = audioRef.current; if (!a) return;
   const out = getLaneGain('kick'); if (!out) return;
 
-  const gd    = GENRES[genre] || GENRES.techno;
-  const kf    = gd.kickFreq || 80;
-  const ke    = gd.kickEnd  || 30;
-  const style = kickStyle(genre);
+  const gd  = GENRES[genre] || GENRES.dnb;
+  const kf  = gd.kickFreq || 80;
+  const ke  = gd.kickEnd  || 30;
+
+  // Pick timbric variant per-hit from genre DNA — makes every kick slightly different
+  const variants = gd.kickVariants || ['punch'];
+  const style    = variants[Math.floor(Math.random() * variants.length)];
   const mG    = a.ctx.createGain(); mG.gain.value = 0.95; mG.connect(out);
 
   // ── deep ──────────────────────────────────────────────────────────────────

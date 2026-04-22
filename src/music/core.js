@@ -11,72 +11,67 @@ export const lerp = (a, b, t) => a + (b - a) * t;
 
 // ─── GENRE DNA ────────────────────────────────────────────────────────────────
 export const GENRES = {
-  techno: {
-    bpm: [128, 140], kick: 'every4', swing: 0.02, atmosphere: 'dark industrial',
-    kickFreq: 80, kickEnd: 30, kickDecay: 0.22, noiseColor: 'brown',
-    modes: ['phrygian', 'minor'], density: 0.72, chaos: 0.35,
-    bassMode: 'fm', synthMode: 'lead',
-    fxProfile: { drive: 0.3, space: 0.4, tone: 0.6 },
-    hatPattern: '16th', description: 'Dark mechanical pulse',
-  },
-  house: {
-    bpm: [120, 130], kick: 'every4', swing: 0.06, atmosphere: 'warm Chicago',
-    kickFreq: 90, kickEnd: 40, kickDecay: 0.2, noiseColor: 'pink',
-    modes: ['dorian', 'mixo'], density: 0.65, chaos: 0.28,
-    bassMode: 'sub', synthMode: 'rhodes',
-    fxProfile: { drive: 0.1, space: 0.55, tone: 0.8 },
-    hatPattern: 'offbeat', description: 'Warm soulful groove',
-  },
-  ambient: {
-    bpm: [70, 90], kick: 'sparse', swing: 0.0, atmosphere: 'oceanic',
-    kickFreq: 60, kickEnd: 25, kickDecay: 0.35, noiseColor: 'pink',
-    modes: ['lydian', 'dorian'], density: 0.25, chaos: 0.55,
-    bassMode: 'drone', synthMode: 'pad',
-    fxProfile: { drive: 0.0, space: 0.9, tone: 0.7 },
-    hatPattern: 'sparse', description: 'Textural spatial sound',
-  },
+  // ── DNB ──────────────────────────────────────────────────────────────────
+  // Broken breakbeats, jungle pressure, reese bass, fast rolling hat.
   dnb: {
-    bpm: [160, 180], kick: 'syncopated', swing: 0.04, atmosphere: 'jungle pressure',
+    bpm: [160, 180], swing: 0.04, atmosphere: 'jungle pressure',
+    kick: 'syncopated',
     kickFreq: 95, kickEnd: 35, kickDecay: 0.14, noiseColor: 'white',
-    modes: ['minor', 'dorian'], density: 0.78, chaos: 0.55,
+    kickVariants: ['click', 'click', 'punch'], // weighted: mostly click, occasionally punch
+    modes: ['minor', 'dorian', 'phrygian'], density: 0.72, chaos: 0.52,
     bassMode: 'reese', synthMode: 'glass',
-    fxProfile: { drive: 0.35, space: 0.3, tone: 0.5 },
-    hatPattern: 'breakbeat', description: 'Fast broken jungle',
+    fxProfile: { drive: 0.35, space: 0.30, tone: 0.50 },
+    hatPattern: 'breakbeat', description: 'Broken jungle pressure',
+    // Rhythmic DNA — defines the groove feel
+    kickPatterns: ['dnb', 'jungle', 'dnb_half'],
+    snarePatterns: ['dnb', 'breakbeat'],
+    hatDensity: 0.55,   // euclidean fill ratio
+    // Melodic DNA
+    noteRange: 'mid',   // bass stays in mid register
+    melodyStyle: 'sparse_stab', // few notes, long holds
+    // Auto-evolution: how fast does the machine mutate on its own
+    evolutionRate: 0.18, // probability per bar of a small mutation
+    evolutionDepth: 2,   // max notes changed per evolution event
   },
+  // ── ACID ─────────────────────────────────────────────────────────────────
+  // 303 squelch, syncopated kick, 16th hat, filter sweeps, phrygian darkness.
   acid: {
-    bpm: [125, 138], kick: 'every4', swing: 0.05, atmosphere: '303 acid',
-    kickFreq: 85, kickEnd: 32, kickDecay: 0.18, noiseColor: 'white',
-    modes: ['phrygian', 'chroma'], density: 0.68, chaos: 0.65,
+    bpm: [125, 140], swing: 0.055, atmosphere: '303 squelch',
+    kick: 'every4',
+    kickFreq: 82, kickEnd: 30, kickDecay: 0.18, noiseColor: 'white',
+    kickVariants: ['acid', 'acid', 'punch'],
+    modes: ['phrygian', 'chroma', 'minor'], density: 0.70, chaos: 0.60,
     bassMode: 'acid303', synthMode: 'stab',
-    fxProfile: { drive: 0.45, space: 0.35, tone: 0.4 },
+    fxProfile: { drive: 0.48, space: 0.30, tone: 0.42 },
     hatPattern: '16th', description: 'Squelching resonant acid',
+    kickPatterns: ['acid', 'every4ghost', 'every4'],
+    snarePatterns: ['backbeat', 'backbeatAlt'],
+    hatDensity: 1.0,    // every 16th note
+    noteRange: 'low',   // bass stays low and squelchy
+    melodyStyle: 'acid_run', // fast runs with filter sweep
+    evolutionRate: 0.25, // acid evolves faster
+    evolutionDepth: 3,
   },
-  industrial: {
-    bpm: [130, 150], kick: 'every4', swing: 0.0, atmosphere: 'concrete noise',
-    kickFreq: 70, kickEnd: 28, kickDecay: 0.28, noiseColor: 'brown',
-    modes: ['chroma', 'phrygian'], density: 0.8, chaos: 0.75,
-    bassMode: 'moog', synthMode: 'air',
-    fxProfile: { drive: 0.55, space: 0.25, tone: 0.35 },
-    hatPattern: 'noise', description: 'Harsh mechanical noise',
-  },
-  experimental: {
-    bpm: [80, 160], kick: 'irregular', swing: 0.08, atmosphere: 'avant-garde',
-    kickFreq: 100, kickEnd: 45, kickDecay: 0.25, noiseColor: 'pink',
-    modes: ['chroma', 'lydian'], density: 0.45, chaos: 0.88,
-    bassMode: 'wet', synthMode: 'vox',
-    fxProfile: { drive: 0.2, space: 0.7, tone: 0.6 },
-    hatPattern: 'random', description: 'Unpredictable textural',
-  },
-  cinematic: {
-    bpm: [85, 110], kick: 'sparse', swing: 0.03, atmosphere: 'epic orchestral',
-    kickFreq: 75, kickEnd: 30, kickDecay: 0.32, noiseColor: 'pink',
-    modes: ['minor', 'lydian'], density: 0.38, chaos: 0.35,
-    bassMode: 'upright', synthMode: 'ether',
-    fxProfile: { drive: 0.05, space: 0.85, tone: 0.85 },
-    hatPattern: 'sparse', description: 'Dramatic cinematic score',
+  // ── AMBIENT ───────────────────────────────────────────────────────────────
+  // Slow, textural, spacious. Long note durations, sparse drums, pad layers.
+  ambient: {
+    bpm: [68, 88], swing: 0.0, atmosphere: 'deep space',
+    kick: 'sparse',
+    kickFreq: 55, kickEnd: 22, kickDecay: 0.40, noiseColor: 'pink',
+    kickVariants: ['round', 'round', 'deep'],
+    modes: ['lydian', 'dorian', 'mixo'], density: 0.22, chaos: 0.45,
+    bassMode: 'drone', synthMode: 'ether',
+    fxProfile: { drive: 0.02, space: 0.92, tone: 0.72 },
+    hatPattern: 'sparse', description: 'Textural deep space',
+    kickPatterns: ['sparse', 'cinematic', 'sparse'],
+    snarePatterns: ['halftime', 'sparse'],
+    hatDensity: 0.14,
+    noteRange: 'wide',  // synth spans multiple octaves
+    melodyStyle: 'long_hold', // very long notes, slow movement
+    evolutionRate: 0.08, // ambient evolves very slowly
+    evolutionDepth: 1,
   },
 };
-
 export const GENRE_NAMES = Object.keys(GENRES);
 
 // ─── MUSICAL THEORY ───────────────────────────────────────────────────────────
@@ -248,41 +243,89 @@ export function arp(notes, mode, step) {
 }
 
 // ─── RHYTHMIC PHRASE TEMPLATES ────────────────────────────────────────────────
+// Genre-specific phrase libraries. Each is a 16-step boolean gate.
 const RHYTHMIC_PHRASES = {
-  bass_steady:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-  bass_groove:  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0],
-  bass_sparse:  [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,1,0,0],
-  bass_push:    [1,0,1,0, 0,1,0,0, 1,0,1,0, 0,0,1,0],
-  bass_acid:    [1,1,0,1, 1,0,1,0, 1,1,0,0, 1,0,1,1],
-  synth_call:   [0,0,1,0, 0,1,0,0, 0,0,1,0, 1,0,0,1],
-  synth_offbeat:[0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
-  synth_stab:   [0,0,0,1, 0,0,0,0, 0,0,0,1, 0,1,0,0],
-  synth_wave:   [0,1,0,0, 1,0,1,0, 0,1,0,0, 1,0,1,1],
-  synth_dense:  [0,1,1,0, 1,0,1,0, 0,1,1,0, 1,0,0,1],
+  // ── DNB bass phrases ──
+  dnb_bass_main:   [1,0,0,0, 0,0,1,0, 0,0,0,1, 0,0,1,0], // broken, syncopated
+  dnb_bass_roll:   [1,0,0,0, 1,0,0,0, 0,1,0,0, 1,0,0,1], // rolling
+  dnb_bass_half:   [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0], // half-time feel
+  dnb_bass_push:   [1,0,1,0, 0,0,0,0, 1,0,1,0, 0,0,1,0], // pushed
+  dnb_bass_sparse: [1,0,0,0, 0,0,0,0, 0,0,1,0, 0,0,0,0], // break/drop
+  // ── DNB synth phrases ──
+  dnb_syn_stab:    [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], // classic stab on 2+4
+  dnb_syn_reese:   [0,1,0,0, 0,0,0,1, 0,1,0,0, 0,0,0,1], // reese hits
+  dnth_syn_atm:    [1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // atmospheric, long note
+  dnb_syn_dense:   [0,1,0,1, 0,0,1,0, 0,1,0,0, 1,0,1,0], // dense fill
+
+  // ── ACID bass phrases ──
+  acid_bass_main:  [1,1,0,1, 1,0,0,1, 1,0,1,0, 1,0,1,1], // dense 303 run
+  acid_bass_loop:  [1,0,1,0, 1,0,1,1, 0,1,0,1, 0,0,1,0], // looping pattern
+  acid_bass_squelch:[1,1,1,0,1,0,1,0, 1,1,0,0, 1,0,0,1], // squelchy dense
+  acid_bass_sparse:[1,0,0,0, 1,0,0,0, 0,1,0,0, 1,0,1,0], // sparser acid
+  // ── ACID synth phrases ──
+  acid_syn_stab:   [0,0,0,1, 0,0,0,0, 0,0,1,0, 0,0,0,1], // sparse stab
+  acid_syn_dense:  [0,1,0,0, 1,0,1,0, 0,0,1,0, 1,0,0,1], // denser response
+  acid_syn_off:    [0,1,0,1, 0,0,0,1, 0,1,0,0, 0,1,0,0], // off-beat
+
+  // ── AMBIENT bass phrases ──
+  amb_bass_drone:  [1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // single long note
+  amb_bass_slow:   [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0], // two notes per bar
+  amb_bass_float:  [1,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,0,1], // floating
+  // ── AMBIENT synth phrases ──
+  amb_syn_cloud:   [1,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0], // one long evolving note
+  amb_syn_breath:  [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0], // two breaths
+  amb_syn_texture: [1,0,0,0, 0,1,0,0, 0,0,0,1, 0,0,0,0], // sparse texture
 };
 
+// Per-genre, per-section phrase selection
 function pickRhythmicPhrase(isCounterpoint, sectionName, genre) {
-  const bassPhrases = {
-    drop:'bass_groove', groove:'bass_groove', build:'bass_push',
-    tension:'bass_acid', break:'bass_sparse', intro:'bass_sparse',
-    outro:'bass_sparse', fill:'bass_groove',
+  const map = {
+    dnb: {
+      bass: {
+        drop:'dnb_bass_main', groove:'dnb_bass_roll', build:'dnb_bass_push',
+        tension:'dnb_bass_push', break:'dnb_bass_sparse', intro:'dnb_bass_half',
+        outro:'dnb_bass_sparse', fill:'dnb_bass_roll',
+      },
+      synth: {
+        drop:'dnb_syn_stab', groove:'dnb_syn_reese', build:'dnb_syn_dense',
+        tension:'dnb_syn_dense', break:'dnth_syn_atm', intro:'dnth_syn_atm',
+        outro:'dnth_syn_atm', fill:'dnb_syn_stab',
+      },
+    },
+    acid: {
+      bass: {
+        drop:'acid_bass_main', groove:'acid_bass_loop', build:'acid_bass_squelch',
+        tension:'acid_bass_squelch', break:'acid_bass_sparse', intro:'acid_bass_sparse',
+        outro:'acid_bass_sparse', fill:'acid_bass_main',
+      },
+      synth: {
+        drop:'acid_syn_stab', groove:'acid_syn_off', build:'acid_syn_dense',
+        tension:'acid_syn_dense', break:'acid_syn_stab', intro:'acid_syn_stab',
+        outro:'acid_syn_stab', fill:'acid_syn_dense',
+      },
+    },
+    ambient: {
+      bass: {
+        drop:'amb_bass_slow', groove:'amb_bass_drone', build:'amb_bass_float',
+        tension:'amb_bass_float', break:'amb_bass_drone', intro:'amb_bass_drone',
+        outro:'amb_bass_drone', fill:'amb_bass_slow',
+      },
+      synth: {
+        drop:'amb_syn_breath', groove:'amb_syn_cloud', build:'amb_syn_texture',
+        tension:'amb_syn_texture', break:'amb_syn_cloud', intro:'amb_syn_cloud',
+        outro:'amb_syn_cloud', fill:'amb_syn_breath',
+      },
+    },
   };
-  const synthPhrases = {
-    drop:'synth_wave', groove:'synth_call', build:'synth_dense',
-    tension:'synth_offbeat', break:'synth_stab', intro:'synth_stab',
-    outro:'synth_stab', fill:'synth_dense',
-  };
-  if (!isCounterpoint) {
-    if (genre === 'acid') return 'bass_acid';
-    return bassPhrases[sectionName] || 'bass_groove';
-  }
-  return synthPhrases[sectionName] || 'synth_call';
+  const genreMap = map[genre] || map.dnb;
+  const laneMap  = isCounterpoint ? genreMap.synth : genreMap.bass;
+  return laneMap[sectionName] || (isCounterpoint ? Object.values(genreMap.synth)[0] : Object.values(genreMap.bass)[0]);
 }
 
 // ─── MELODIC PHRASE BUILDER ───────────────────────────────────────────────────
 export function buildMelodicLine(
   pool, chordProgression, steps, chaos, arpeMode, lenBias, startNote,
-  isCounterpoint = false, sectionName = 'groove', genre = 'techno',
+  isCounterpoint = false, sectionName = 'groove', genre = 'dnb',
 ) {
   const line      = mkNotes(pool[0]);
   const lengths   = Array(steps).fill(1);
@@ -446,28 +489,24 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
 
   const laneLen = { kick: 16, snare: 16, hat: 32, bass: 32, synth: 32 };
   if (genre === 'dnb') {
-    laneLen.hat = 48;
+    laneLen.hat  = 48;   // longer hat loop for breakbeat variation
     laneLen.bass = 32;
-    laneLen.synth = 64;
-  }
-  if (genre === 'ambient') {
-    laneLen.kick = 32;
-    laneLen.bass = 64;
-    laneLen.synth = 64;
+    laneLen.synth= 64;
   }
   if (genre === 'acid') {
-    laneLen.bass = 16;
-    laneLen.synth = 32;
+    laneLen.bass = 16;   // tight 303 loop
+    laneLen.synth= 32;
   }
-  if (genre === 'cinematic') {
-    laneLen.bass = 64;
-    laneLen.synth = 64;
+  if (genre === 'ambient') {
+    laneLen.kick = 32;   // sparse kick over 2 bars
+    laneLen.bass = 64;   // drone over 4 bars
+    laneLen.synth= 64;   // long evolving pad
   }
 
   const bassLb =
     sec.lb * (sectionName === 'break' ? 2.5 : sectionName === 'drop' ? 0.8 : 1);
   const synthLb =
-    sec.lb * (sectionName === 'break' ? 3 : sectionName === 'ambient' ? 4 : 1.2);
+    sec.lb * (sectionName === 'break' ? 3 : genre === 'ambient' ? 4 : 1.2);
 
   const { line: bassLine, lengths: bassLengths, lastNote: lastBassNote } = buildMelodicLine(
     bp, progression, laneLen.bass, chaos, arpeMode, bassLb, prevBass,
@@ -498,50 +537,29 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
   }
 
   // ── Genre-specific kick patterns (2 bars = 32 steps at 16 per bar) ─────────
-  // Each is a 16-step boolean template. Bar 2 may vary from bar 1.
+  // Each is a 16-step boolean template.
   const KICK_PATTERNS = {
-    // 4-on-the-floor variants
     every4:      [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-    every4ghost: [1,0,0,0, 1,0,0,1, 1,0,0,0, 1,0,1,0], // with ghost hits
-    // Syncopated / pushed
+    every4ghost: [1,0,0,0, 1,0,0,1, 1,0,0,0, 1,0,1,0],
     push:        [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,1,0],
-    techno2:     [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,0,0,0],
-    // Sparse
     sparse:      [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
-    cinematic:   [1,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0],
-    // Breakbeat / syncopated
+    ambient_k:   [1,0,0,0, 0,0,0,0, 0,0,0,0, 1,0,0,0],
     dnb:         [1,0,0,0, 0,0,1,0, 0,0,1,0, 0,1,0,0],
+    dnb_half:    [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,1,0,0],
     jungle:      [1,0,0,1, 0,0,0,0, 1,0,0,0, 0,0,1,0],
-    // Triplet feel
-    halftime:    [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,1,0,0],
-    // Acid / irregular
     acid:        [1,0,0,0, 1,0,1,0, 1,0,0,0, 1,1,0,0],
   };
 
-  // Pick kick pattern based on genre + section
   function pickKickPattern(genre, sectionName) {
     const map = {
-      techno:      ['every4', 'every4ghost', 'techno2'],
-      house:       ['every4', 'every4ghost', 'every4'],
-      ambient:     ['sparse', 'cinematic', 'sparse'],
-      dnb:         ['dnb', 'jungle', 'dnb'],
-      acid:        ['acid', 'every4ghost', 'acid'],
-      industrial:  ['every4', 'techno2', 'every4ghost'],
-      experimental:['push', 'halftime', 'dnb'],
-      cinematic:   ['cinematic', 'sparse', 'halftime'],
+      dnb:     { drop:'dnb', groove:'jungle', build:'dnb', tension:'dnb', break:'dnb_half', intro:'sparse', outro:'sparse', fill:'dnb' },
+      acid:    { drop:'acid', groove:'every4ghost', build:'acid', tension:'acid', break:'every4', intro:'every4', outro:'sparse', fill:'acid' },
+      ambient: { drop:'sparse', groove:'ambient_k', build:'sparse', tension:'push', break:'ambient_k', intro:'ambient_k', outro:'ambient_k', fill:'sparse' },
     };
-    const options = map[genre] || ['every4'];
-    // Sections influence pattern choice
-    if (sectionName === 'drop' || sectionName === 'groove') {
-      return options[0]; // most active
-    }
-    if (sectionName === 'break' || sectionName === 'outro') {
-      return options[Math.min(2, options.length - 1)]; // most sparse
-    }
-    return pick(options);
+    return (map[genre] || map.dnb)[sectionName] || 'dnb';
   }
 
-  // ── Snare patterns ─────────────────────────────────────────────────────────
+  // ── Snare patterns  // ── Snare patterns ─────────────────────────────────────────────────────────
   const SNARE_PATTERNS = {
     backbeat:    [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0], // beats 2 & 4
     backbeatAlt: [0,0,0,0, 1,0,0,0, 0,0,1,0, 1,0,0,0], // 2 & 4 + ghost
@@ -553,18 +571,13 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
 
   function pickSnarePattern(genre, sectionName) {
     const map = {
-      techno:      ['backbeat', 'backbeatAlt'],
-      house:       ['backbeat', 'backbeatAlt'],
-      ambient:     ['sparse', 'halftime'],
-      dnb:         ['dnb', 'breakbeat'],
-      acid:        ['backbeat', 'backbeatAlt'],
-      industrial:  ['backbeat', 'backbeatAlt'],
-      experimental:['breakbeat', 'dnb'],
-      cinematic:   ['halftime', 'sparse'],
+      dnb:     ['dnb', 'breakbeat'],
+      acid:    ['backbeat', 'backbeatAlt'],
+      ambient: ['halftime', 'sparse'],
     };
     if (sectionName === 'break') return 'halftime';
     if (sectionName === 'fill')  return 'breakbeat';
-    const opts = map[genre] || ['backbeat'];
+    const opts = map[genre] || map.dnb;
     return pick(opts);
   }
 
@@ -874,4 +887,92 @@ export function grooveAccent(profile, lane, step, amount) {
   const laneTable = table[lane] || table.kick;
   const base = laneTable[pos] || 1;
   return lerp(1, base, clamp(amount, 0, 1));
+}
+// ─── AUTONOMOUS EVOLUTION ENGINE ─────────────────────────────────────────────
+// Called every N bars by the sequencer. Mutates the live pattern slightly
+// without destroying its structure. The human trigger overrides this completely.
+//
+// evolutionType controls what changes:
+//   'melodic'  — shift 1-3 notes in bass/synth line
+//   'rhythmic' — flip 1-2 non-anchor drum steps
+//   'velocity' — nudge velocities on a lane
+//   'filter'   — not a pattern change, signals the sequencer to sweep filter
+//
+export function evolveSection(patterns, bassLine, synthLine, laneLen, genre, sectionName, chaos) {
+  const gd   = GENRES[genre];
+  if (!gd) return { patterns, bassLine, synthLine };
+
+  const rate  = gd.evolutionRate || 0.15;
+  const depth = gd.evolutionDepth || 2;
+
+  // Clone patterns deeply
+  const p  = {
+    kick:  patterns.kick.map(c => ({ ...c })),
+    snare: patterns.snare.map(c => ({ ...c })),
+    hat:   patterns.hat.map(c => ({ ...c })),
+    bass:  patterns.bass.map(c => ({ ...c })),
+    synth: patterns.synth.map(c => ({ ...c })),
+  };
+  const bl = [...bassLine];
+  const sl = [...synthLine];
+
+  const evType = rnd() < 0.5 ? 'melodic' : rnd() < 0.7 ? 'rhythmic' : 'velocity';
+
+  if (evType === 'melodic') {
+    // Shift a few notes in the melodic lines — small step up or down in pool
+    const mode = MODES[pick(['minor', 'dorian', 'phrygian', 'lydian'])];
+    const bassPool  = mode.b;
+    const synthPool = mode.s;
+
+    for (let d = 0; d < depth; d++) {
+      if (rnd() < rate) {
+        const i   = Math.floor(rnd() * laneLen.bass);
+        const cur = bl[i];
+        const idx = bassPool.indexOf(cur);
+        if (idx !== -1) {
+          const dir   = rnd() < 0.5 ? 1 : -1;
+          bl[i] = bassPool[clamp(idx + dir, 0, bassPool.length - 1)];
+        }
+      }
+      if (rnd() < rate) {
+        const i   = Math.floor(rnd() * laneLen.synth);
+        const cur = sl[i];
+        const idx = synthPool.indexOf(cur);
+        if (idx !== -1) {
+          const dir = rnd() < 0.5 ? 1 : -1;
+          sl[i] = synthPool[clamp(idx + dir, 0, synthPool.length - 1)];
+        }
+      }
+    }
+  }
+
+  if (evType === 'rhythmic') {
+    // Flip 1-2 non-anchor hat or snare steps
+    const lane = rnd() < 0.6 ? 'hat' : 'snare';
+    const ll   = laneLen[lane] || 32;
+    for (let d = 0; d < depth; d++) {
+      if (rnd() < rate * 1.5) {
+        const pos = Math.floor(rnd() * ll);
+        // Protect anchor beats (0, 4, 8, 12 mod 16)
+        const mod = pos % 16;
+        if (mod !== 0 && mod !== 4 && mod !== 8 && mod !== 12) {
+          p[lane][pos].on = !p[lane][pos].on;
+          if (p[lane][pos].on) p[lane][pos].v = 0.30 + rnd() * 0.35;
+        }
+      }
+    }
+  }
+
+  if (evType === 'velocity') {
+    // Nudge velocities on bass or synth — makes the groove breathe
+    const lane = rnd() < 0.5 ? 'bass' : 'synth';
+    const ll   = laneLen[lane] || 32;
+    for (let i = 0; i < ll; i++) {
+      if (p[lane][i].on && rnd() < 0.25) {
+        p[lane][i].v = clamp(p[lane][i].v + (rnd() * 0.2 - 0.1), 0.20, 1.0);
+      }
+    }
+  }
+
+  return { patterns: p, bassLine: bl, synthLine: sl };
 }

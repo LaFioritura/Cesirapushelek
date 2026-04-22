@@ -58,19 +58,27 @@ export function playBassVoice({
   const ms   = (rel + 0.3) * 1000;
   releaseNode(activeNodesRef, ms);
 
+  // Procedural timbric variation — each note gets slightly different filter character
+  // This is what makes the bass feel alive instead of mechanical
+  const filterJitter = (Math.random() * 0.16) - 0.08; // ±8% of bassFilter
+  const qJitter      = (Math.random() * 0.8) - 0.4;   // ±0.4 Q
+  const gainJitter   = 1.0 + (Math.random() * 0.08) - 0.04; // ±4% gain
+
   // Shared master envelope
   const g = a.ctx.createGain();
   g.gain.setValueAtTime(0, time);
-  g.gain.linearRampToValueAtTime(0.60 * accent, time + atk);
-  g.gain.setValueAtTime(0.60 * accent, time + rel * 0.28);
+  g.gain.linearRampToValueAtTime(0.60 * accent * gainJitter, time + atk);
+  g.gain.setValueAtTime(0.60 * accent * gainJitter, time + rel * 0.28);
   g.gain.exponentialRampToValueAtTime(0.0001, time + rel);
   g.connect(dest);
 
-  // Shared filter (overridden by some modes)
+  // Shared filter with per-note variation
   const fil = a.ctx.createBiquadFilter();
   fil.type = 'lowpass';
-  fil.frequency.setValueAtTime(clamp(60 + bassFilter*3800 + tone*700, 60, 18000), time);
-  fil.Q.value = 0.4 + compress*2.5;
+  fil.frequency.setValueAtTime(
+    clamp(60 + (bassFilter + filterJitter) * 3800 + tone * 700, 60, 18000), time
+  );
+  fil.Q.value = clamp(0.4 + compress * 2.5 + qJitter, 0.1, 8);
   fil.connect(g);
 
   // ── acid303 ──────────────────────────────────────────────────────────────────

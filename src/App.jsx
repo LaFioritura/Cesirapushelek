@@ -18,7 +18,7 @@ const SECTION_COLORS = {
 };
 
 export default function App() {
-  const [genre,              setGenre]              = useState('techno');
+  const [genre,              setGenre]              = useState('dnb');
   const [bpm,                setBpm]                = useState(128);
   const [modeName,           setModeName]           = useState('minor');
   const [arpeMode,           setArpeMode]           = useState('up');
@@ -67,6 +67,10 @@ export default function App() {
     swing: sound.swing, humanize: sound.humanize,
     grooveAmt: sound.grooveAmt, grooveProfile: sound.grooveProfile,
     setActiveNotes, flashLane,
+    currentSectionName,
+    onEvolve: useCallback((evolved) => {
+      pat.applyEvolution(evolved);
+    }, [pat]),
   });
 
   // ── Transport ──────────────────────────────────────────────────────────────

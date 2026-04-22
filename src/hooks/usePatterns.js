@@ -144,6 +144,13 @@ export function usePatterns({ genre, modeName, arpeMode, setCurrentSectionName }
   /**
    * Flip 3–5 random drum hits, avoiding beat-1 of each bar.
    */
+  // Apply autonomous evolution result from the engine
+  const applyEvolution = useCallback(({ patterns: p, bassLine: bl, synthLine: sl }) => {
+    setPatterns(p);
+    setBassLine(bl);
+    setSynthLine(sl);
+  }, []);
+
   const mutate = useCallback(() => {
     pushUndo();
     setPatterns(prev => {
@@ -306,31 +313,12 @@ export function usePatterns({ genre, modeName, arpeMode, setCurrentSectionName }
   }, []);
 
   return {
-    patterns,
-    bassLine,
-    synthLine,
-    laneLen,
-    stepRef,
-    historyLen: history.length,
-    savedScenes,
-    undo,
-    toggleCell,
-    setNote,
-    clearPatterns,
-    regenerateSection,
-    saveScene,
-    loadScene,
-    exportProject,
-    importProject,
-    // Mutation actions
-    mutate,
-    thinOut,
-    thicken,
-    reharmonize,
-    shiftArp,
-    randomizeSynthNotes,
-    randomizeBassNotes,
-    shiftNotesUp,
-    shiftNotesDown,
+    patterns, bassLine, synthLine, laneLen,
+    stepRef, historyLen: history.length, savedScenes,
+    applyEvolution,
+    undo, toggleCell, setNote, clearPatterns, regenerateSection,
+    saveScene, loadScene, exportProject, importProject,
+    mutate, thinOut, thicken, reharmonize, shiftArp,
+    randomizeSynthNotes, randomizeBassNotes, shiftNotesUp, shiftNotesDown,
   };
 }

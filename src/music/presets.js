@@ -1,138 +1,110 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// CESIRA PRESET LIBRARY
-// Each preset maps directly to the parameters exposed in useSoundParams.
-// Genre profiles and section automations are at the bottom.
+// CESIRA — PRESET LIBRARY  (DNB · ACID · AMBIENT)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── BASS PRESETS ──────────────────────────────────────────────────────────────
-// 12 presets covering all bassMode flavours.
 export const BASS_PRESETS = {
-  // ── Sub / warm ──
-  sub_floor:    { label: 'SUB FLOOR',    bassSubAmt: 0.92, bassFilter: 0.28, fmIdx: 0.15 },
-  warm_round:   { label: 'WARM ROUND',   bassSubAmt: 0.75, bassFilter: 0.48, fmIdx: 0.20 },
-  deep_pulse:   { label: 'DEEP PULSE',   bassSubAmt: 0.85, bassFilter: 0.22, fmIdx: 0.10 },
-  // ── FM / digital ──
-  fm_growl:     { label: 'FM GROWL',     bassSubAmt: 0.45, bassFilter: 0.62, fmIdx: 1.40 },
-  fm_stab:      { label: 'FM STAB',      bassSubAmt: 0.30, bassFilter: 0.78, fmIdx: 2.20 },
-  bit_crunch:   { label: 'BIT CRUNCH',   bassSubAmt: 0.20, bassFilter: 0.90, fmIdx: 2.80 },
-  // ── Acid / filter ──
-  acid_line:    { label: 'ACID LINE',    bassSubAmt: 0.28, bassFilter: 0.88, fmIdx: 0.45 },
-  acid_dark:    { label: 'ACID DARK',    bassSubAmt: 0.40, bassFilter: 0.55, fmIdx: 0.35 },
-  // ── Organic / modulated ──
-  reese_neuro:  { label: 'REESE NEURO',  bassSubAmt: 0.55, bassFilter: 0.38, fmIdx: 0.60 },
-  wobble_low:   { label: 'WOBBLE LOW',   bassSubAmt: 0.65, bassFilter: 0.70, fmIdx: 0.80 },
-  upright_wood: { label: 'UPRIGHT WOOD', bassSubAmt: 0.80, bassFilter: 0.40, fmIdx: 0.12 },
-  moog_fat:     { label: 'MOOG FAT',     bassSubAmt: 0.70, bassFilter: 0.52, fmIdx: 0.30 },
+  // DNB
+  reese_dark:    { label:'REESE DARK',    bassSubAmt:0.55, bassFilter:0.30, fmIdx:0.60 },
+  reese_bright:  { label:'REESE BRIGHT',  bassSubAmt:0.45, bassFilter:0.55, fmIdx:0.80 },
+  reese_neuro:   { label:'REESE NEURO',   bassSubAmt:0.35, bassFilter:0.72, fmIdx:1.20 },
+  sub_roller:    { label:'SUB ROLLER',    bassSubAmt:0.90, bassFilter:0.22, fmIdx:0.15 },
+  wobble_dnb:    { label:'WOBBLE DNB',    bassSubAmt:0.60, bassFilter:0.65, fmIdx:0.90 },
+  pluck_dnb:     { label:'PLUCK DNB',     bassSubAmt:0.70, bassFilter:0.50, fmIdx:0.20 },
+  // ACID
+  acid_classic:  { label:'ACID CLASSIC',  bassSubAmt:0.25, bassFilter:0.90, fmIdx:0.40 },
+  acid_dark:     { label:'ACID DARK',     bassSubAmt:0.38, bassFilter:0.60, fmIdx:0.35 },
+  acid_bright:   { label:'ACID BRIGHT',   bassSubAmt:0.18, bassFilter:0.95, fmIdx:0.55 },
+  acid_fat:      { label:'ACID FAT',      bassSubAmt:0.50, bassFilter:0.78, fmIdx:0.45 },
+  acid_slide:    { label:'ACID SLIDE',    bassSubAmt:0.30, bassFilter:0.85, fmIdx:0.30 },
+  // AMBIENT
+  drone_deep:    { label:'DRONE DEEP',    bassSubAmt:0.88, bassFilter:0.18, fmIdx:0.10 },
+  drone_warm:    { label:'DRONE WARM',    bassSubAmt:0.80, bassFilter:0.35, fmIdx:0.12 },
+  upright_wood:  { label:'UPRIGHT WOOD',  bassSubAmt:0.78, bassFilter:0.40, fmIdx:0.10 },
+  pad_bass:      { label:'PAD BASS',      bassSubAmt:0.70, bassFilter:0.28, fmIdx:0.08 },
 };
 
 // ── SYNTH PRESETS ─────────────────────────────────────────────────────────────
-// 12 presets, one for each synthMode and timbric context.
 export const SYNTH_PRESETS = {
-  // ── Pads / atmosphere ──
-  velvet_pad:   { label: 'VELVET PAD',   synthFilter: 0.38, tone: 0.38, space: 0.65 },
-  dark_atmo:    { label: 'DARK ATMO',    synthFilter: 0.22, tone: 0.20, space: 0.80 },
-  ethereal:     { label: 'ETHEREAL',     synthFilter: 0.50, tone: 0.55, space: 0.90 },
-  choir_rise:   { label: 'CHOIR RISE',   synthFilter: 0.44, tone: 0.48, space: 0.72 },
-  // ── Keys / melodic ──
-  glass_keys:   { label: 'GLASS KEYS',   synthFilter: 0.80, tone: 0.72, space: 0.48 },
-  rhodes_warm:  { label: 'RHODES WARM',  synthFilter: 0.65, tone: 0.58, space: 0.42 },
-  marimba_hit:  { label: 'MARIMBA HIT',  synthFilter: 0.85, tone: 0.80, space: 0.30 },
-  vintage_juno: { label: 'VINTAGE JUNO', synthFilter: 0.60, tone: 0.52, space: 0.55 },
-  // ── Leads / aggressive ──
-  bright_lead:  { label: 'BRIGHT LEAD',  synthFilter: 0.92, tone: 0.82, space: 0.18 },
-  acid_stab:    { label: 'ACID STAB',    synthFilter: 0.88, tone: 0.70, space: 0.22 },
-  supersaw_wall:{ label: 'SUPERSAW',     synthFilter: 0.75, tone: 0.65, space: 0.35 },
-  // ── Vocal / experimental ──
-  vox_formant:  { label: 'VOX FORMANT',  synthFilter: 0.55, tone: 0.45, space: 0.60 },
+  // DNB
+  glass_tight:   { label:'GLASS TIGHT',   synthFilter:0.85, tone:0.78, space:0.30 },
+  glass_warm:    { label:'GLASS WARM',    synthFilter:0.72, tone:0.62, space:0.45 },
+  stab_hard:     { label:'STAB HARD',     synthFilter:0.95, tone:0.85, space:0.15 },
+  stab_soft:     { label:'STAB SOFT',     synthFilter:0.78, tone:0.68, space:0.28 },
+  reese_synth:   { label:'REESE SYNTH',   synthFilter:0.60, tone:0.50, space:0.35 },
+  // ACID
+  acid_lead:     { label:'ACID LEAD',     synthFilter:0.92, tone:0.80, space:0.18 },
+  acid_pad:      { label:'ACID PAD',      synthFilter:0.68, tone:0.55, space:0.40 },
+  acid_stab:     { label:'ACID STAB',     synthFilter:0.88, tone:0.72, space:0.22 },
+  square_lead:   { label:'SQUARE LEAD',   synthFilter:0.90, tone:0.75, space:0.20 },
+  // AMBIENT
+  ether_deep:    { label:'ETHER DEEP',    synthFilter:0.35, tone:0.45, space:0.92 },
+  ether_bright:  { label:'ETHER BRIGHT',  synthFilter:0.55, tone:0.65, space:0.85 },
+  velvet_pad:    { label:'VELVET PAD',    synthFilter:0.30, tone:0.38, space:0.88 },
+  dark_atmo:     { label:'DARK ATMO',     synthFilter:0.20, tone:0.25, space:0.95 },
+  choir_soft:    { label:'CHOIR SOFT',    synthFilter:0.42, tone:0.52, space:0.80 },
+  rhodes_warm:   { label:'RHODES WARM',   synthFilter:0.60, tone:0.58, space:0.55 },
 };
 
 // ── DRUM PRESETS ──────────────────────────────────────────────────────────────
-// 10 presets covering the full decay/noise spectrum.
 export const DRUM_PRESETS = {
-  tight_punch:  { label: 'TIGHT PUNCH',  drumDecay: 0.20, noiseMix: 0.08 },
-  iron_machine: { label: 'IRON MACHINE', drumDecay: 0.28, noiseMix: 0.22 },
-  heavy_club:   { label: 'HEAVY CLUB',   drumDecay: 0.38, noiseMix: 0.18 },
-  vinyl_break:  { label: 'VINYL BREAK',  drumDecay: 0.52, noiseMix: 0.45 },
-  dusty_break:  { label: 'DUSTY BREAK',  drumDecay: 0.58, noiseMix: 0.42 },
-  soft_analog:  { label: 'SOFT ANALOG',  drumDecay: 0.62, noiseMix: 0.12 },
-  noise_burst:  { label: 'NOISE BURST',  drumDecay: 0.18, noiseMix: 0.75 },
-  deep_room:    { label: 'DEEP ROOM',    drumDecay: 0.70, noiseMix: 0.20 },
-  electro_snap: { label: 'ELECTRO SNAP', drumDecay: 0.15, noiseMix: 0.35 },
-  jungle_chop:  { label: 'JUNGLE CHOP',  drumDecay: 0.25, noiseMix: 0.55 },
+  // DNB
+  jungle_tight:  { label:'JUNGLE TIGHT',  drumDecay:0.18, noiseMix:0.50 },
+  jungle_dusty:  { label:'JUNGLE DUSTY',  drumDecay:0.28, noiseMix:0.62 },
+  dnb_clinical:  { label:'DNB CLINICAL',  drumDecay:0.14, noiseMix:0.30 },
+  dnb_heavy:     { label:'DNB HEAVY',     drumDecay:0.22, noiseMix:0.42 },
+  // ACID
+  acid_snap:     { label:'ACID SNAP',     drumDecay:0.14, noiseMix:0.28 },
+  acid_punch:    { label:'ACID PUNCH',    drumDecay:0.22, noiseMix:0.18 },
+  acid_heavy:    { label:'ACID HEAVY',    drumDecay:0.30, noiseMix:0.22 },
+  // AMBIENT
+  soft_bloom:    { label:'SOFT BLOOM',    drumDecay:0.70, noiseMix:0.12 },
+  deep_room:     { label:'DEEP ROOM',     drumDecay:0.65, noiseMix:0.18 },
+  ghost_hit:     { label:'GHOST HIT',     drumDecay:0.50, noiseMix:0.25 },
 };
 
 // ── PERFORMANCE PRESETS ───────────────────────────────────────────────────────
-// 8 presets covering master/FX contexts.
 export const PERFORMANCE_PRESETS = {
-  club_night:    { label: 'CLUB NIGHT',    master: 0.85, drive: 0.35, compress: 0.42, space: 0.28 },
-  warehouse:     { label: 'WAREHOUSE',     master: 0.90, drive: 0.52, compress: 0.55, space: 0.18 },
-  deep_session:  { label: 'DEEP SESSION',  master: 0.72, drive: 0.14, compress: 0.20, space: 0.52 },
-  ambient_flow:  { label: 'AMBIENT FLOW',  master: 0.62, drive: 0.08, compress: 0.12, space: 0.78 },
-  radio_loud:    { label: 'RADIO LOUD',    master: 0.95, drive: 0.60, compress: 0.70, space: 0.15 },
-  studio_clean:  { label: 'STUDIO CLEAN',  master: 0.78, drive: 0.05, compress: 0.10, space: 0.35 },
-  live_raw:      { label: 'LIVE RAW',      master: 0.88, drive: 0.45, compress: 0.38, space: 0.22 },
-  cinematic_mix: { label: 'CINEMATIC MIX', master: 0.70, drive: 0.10, compress: 0.18, space: 0.85 },
+  // DNB
+  dnb_floor:     { label:'DNB FLOOR',     master:0.88, drive:0.38, compress:0.50, space:0.25 },
+  dnb_raw:       { label:'DNB RAW',       master:0.90, drive:0.50, compress:0.45, space:0.20 },
+  // ACID
+  acid_club:     { label:'ACID CLUB',     master:0.86, drive:0.48, compress:0.52, space:0.28 },
+  acid_warehouse:{ label:'ACID WARE',     master:0.92, drive:0.55, compress:0.58, space:0.18 },
+  // AMBIENT
+  ambient_deep:  { label:'AMBIENT DEEP',  master:0.65, drive:0.04, compress:0.12, space:0.90 },
+  ambient_wide:  { label:'AMBIENT WIDE',  master:0.70, drive:0.06, compress:0.10, space:0.95 },
 };
 
 // ── GENRE PROFILES ────────────────────────────────────────────────────────────
-// Each genre carries a recommended set of presets for all four categories.
-// Applied automatically when genre changes or song arc starts.
 export const GENRE_PROFILES = {
-  techno: {
-    bass: 'fm_growl',   synth: 'dark_atmo',    drum: 'iron_machine', perf: 'warehouse',
-    grooveProfile: 'bunker', grooveAmt: 0.72, swing: 0.02, humanize: 0.004,
-    space: 0.28, tone: 0.55, drive: 0.42, compress: 0.48,
-  },
-  house: {
-    bass: 'warm_round',  synth: 'rhodes_warm',  drum: 'heavy_club',   perf: 'club_night',
-    grooveProfile: 'steady', grooveAmt: 0.65, swing: 0.06, humanize: 0.008,
-    space: 0.45, tone: 0.72, drive: 0.18, compress: 0.30,
-  },
-  ambient: {
-    bass: 'deep_pulse',  synth: 'ethereal',     drum: 'deep_room',    perf: 'ambient_flow',
-    grooveProfile: 'float', grooveAmt: 0.40, swing: 0.00, humanize: 0.012,
-    space: 0.82, tone: 0.65, drive: 0.04, compress: 0.10,
-  },
   dnb: {
-    bass: 'reese_neuro', synth: 'glass_keys',   drum: 'jungle_chop',  perf: 'warehouse',
-    grooveProfile: 'broken', grooveAmt: 0.68, swing: 0.04, humanize: 0.006,
-    space: 0.25, tone: 0.50, drive: 0.38, compress: 0.52,
+    bass:'reese_dark', synth:'glass_tight', drum:'jungle_tight', perf:'dnb_floor',
+    grooveProfile:'broken', grooveAmt:0.70, swing:0.04, humanize:0.005,
+    space:0.28, tone:0.52, drive:0.38, compress:0.50,
   },
   acid: {
-    bass: 'acid_line',   synth: 'acid_stab',    drum: 'electro_snap', perf: 'club_night',
-    grooveProfile: 'bunker', grooveAmt: 0.60, swing: 0.05, humanize: 0.005,
-    space: 0.32, tone: 0.60, drive: 0.50, compress: 0.55,
+    bass:'acid_classic', synth:'acid_stab', drum:'acid_snap', perf:'acid_club',
+    grooveProfile:'bunker', grooveAmt:0.62, swing:0.055, humanize:0.005,
+    space:0.30, tone:0.55, drive:0.48, compress:0.52,
   },
-  industrial: {
-    bass: 'bit_crunch',  synth: 'dark_atmo',    drum: 'noise_burst',  perf: 'radio_loud',
-    grooveProfile: 'bunker', grooveAmt: 0.80, swing: 0.00, humanize: 0.002,
-    space: 0.18, tone: 0.38, drive: 0.65, compress: 0.62,
-  },
-  experimental: {
-    bass: 'wobble_low',  synth: 'vox_formant',  drum: 'vinyl_break',  perf: 'live_raw',
-    grooveProfile: 'broken', grooveAmt: 0.55, swing: 0.08, humanize: 0.015,
-    space: 0.60, tone: 0.50, drive: 0.28, compress: 0.35,
-  },
-  cinematic: {
-    bass: 'upright_wood',synth: 'choir_rise',   drum: 'soft_analog',  perf: 'cinematic_mix',
-    grooveProfile: 'float', grooveAmt: 0.45, swing: 0.03, humanize: 0.010,
-    space: 0.80, tone: 0.78, drive: 0.06, compress: 0.14,
+  ambient: {
+    bass:'drone_deep', synth:'ether_deep', drum:'soft_bloom', perf:'ambient_deep',
+    grooveProfile:'float', grooveAmt:0.38, swing:0.00, humanize:0.012,
+    space:0.92, tone:0.68, drive:0.03, compress:0.10,
   },
 };
 
 // ── SECTION AUTOMATIONS ───────────────────────────────────────────────────────
-// Delta values applied ON TOP of the current genre profile when a section fires.
-// Positive = increase from current, negative = decrease.
-// All values are absolute (not delta) to keep it predictable.
 export const SECTION_AUTOMATIONS = {
-  intro:   { space: +0.12, drive: -0.10, compress: -0.12, grooveAmt: -0.15 },
-  build:   { space: -0.08, drive: +0.08, compress: +0.10, grooveAmt: +0.12 },
-  drop:    { space: -0.12, drive: +0.15, compress: +0.15, grooveAmt: +0.20 },
-  groove:  { space:  0.00, drive:  0.00, compress:  0.00, grooveAmt:  0.00 },
-  break:   { space: +0.25, drive: -0.20, compress: -0.20, grooveAmt: -0.30 },
-  tension: { space: -0.05, drive: +0.10, compress: +0.08, grooveAmt: +0.10 },
-  fill:    { space: -0.05, drive: +0.12, compress: +0.05, grooveAmt: +0.15 },
-  outro:   { space: +0.18, drive: -0.15, compress: -0.15, grooveAmt: -0.25 },
+  intro:   { space:+0.10, drive:-0.08, compress:-0.10, grooveAmt:-0.12 },
+  build:   { space:-0.06, drive:+0.08, compress:+0.10, grooveAmt:+0.10 },
+  drop:    { space:-0.10, drive:+0.14, compress:+0.14, grooveAmt:+0.18 },
+  groove:  { space: 0.00, drive: 0.00, compress: 0.00, grooveAmt: 0.00 },
+  break:   { space:+0.22, drive:-0.18, compress:-0.18, grooveAmt:-0.25 },
+  tension: { space:-0.04, drive:+0.10, compress:+0.08, grooveAmt:+0.08 },
+  fill:    { space:-0.04, drive:+0.10, compress:+0.05, grooveAmt:+0.12 },
+  outro:   { space:+0.16, drive:-0.14, compress:-0.14, grooveAmt:-0.22 },
 };
 
 export const SOUND_PRESETS = {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MAX_STEPS, clamp, grooveAccent } from '../music/core';
+import { MAX_STEPS, clamp, grooveAccent, evolveSection } from '../music/core';
 import { playKick, playSnare, playHat } from '../audio/voiceDrums';
 import { playBass }  from '../audio/voiceBass';
 import { playSynth } from '../audio/voiceSynth';
@@ -47,12 +47,16 @@ export function useSequencer({
   grooveProfile,
   setActiveNotes,
   flashLane,
+  onEvolve,           // callback(evolved) — called when machine auto-mutates
+  currentSectionName, // needed for evolution context
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [visibleStep, setVisibleStep] = useState(-1);
 
   // All sequencer state lives in refs so the scheduler closure never stales.
-  const isPlayingRef   = useRef(false);
+  const onEvolveRef          = useRef(onEvolve);
+  const currentSectionRef    = useRef(currentSectionName);
+  const lastEvolvBarRef      = useRef(-1);
   const nextBeatTimeRef = useRef(0); // AudioContext time of the next step
   const scheduledRef   = useRef([]); // [{step, time}] for UI sync
 
@@ -103,6 +107,8 @@ export function useSequencer({
   humanizeRef.current    = humanize;
   grooveAmtRef.current   = grooveAmt;
   grooveProfileRef.current = grooveProfile;
+  onEvolveRef.current       = onEvolve;
+  currentSectionRef.current = currentSectionName;
 
   // ── Step fn (called with an AudioContext timestamp) ────────────────────────
 
@@ -173,6 +179,22 @@ export function useSequencer({
     while (nextBeatTimeRef.current < now + LOOKAHEAD_SEC) {
       const step = stepRef.current % MAX_STEPS;
       scheduleStep(step, nextBeatTimeRef.current);
+
+      // Autonomous evolution: every 32 steps (2 bars) the machine mutates slightly.
+      const bar = Math.floor(step / 32);
+      if (step % 32 === 0 && bar !== lastEvolvBarRef.current && onEvolveRef.current) {
+        lastEvolvBarRef.current = bar;
+        const evolved = evolveSection(
+          patternsRef.current,
+          bassLineRef.current,
+          synthLineRef.current,
+          laneLenRef.current,
+          genreRef.current,
+          currentSectionRef.current,
+          0.5,
+        );
+        onEvolveRef.current(evolved);
+      }
 
       // Queue for UI sync: we'll pick these up in the RAF loop.
       scheduledRef.current.push({ step, time: nextBeatTimeRef.current });
