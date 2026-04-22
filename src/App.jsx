@@ -54,6 +54,10 @@ export default function App() {
   }, []);
 
   // ── Sequencer ──────────────────────────────────────────────────────────────
+  const onEvolve = useCallback((evolved) => {
+    pat.applyEvolution(evolved);
+  }, [pat]);
+
   const seq = useSequencer({
     audioRef: audio.audioRef, getLaneGain: audio.getLaneGain,
     activeNodesRef, patterns: pat.patterns, laneLen: pat.laneLen,
@@ -68,9 +72,7 @@ export default function App() {
     grooveAmt: sound.grooveAmt, grooveProfile: sound.grooveProfile,
     setActiveNotes, flashLane,
     currentSectionName,
-    onEvolve: useCallback((evolved) => {
-      pat.applyEvolution(evolved);
-    }, [pat]),
+    onEvolve,
   });
 
   // ── Transport ──────────────────────────────────────────────────────────────

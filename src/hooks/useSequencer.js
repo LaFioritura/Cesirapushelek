@@ -54,11 +54,12 @@ export function useSequencer({
   const [visibleStep, setVisibleStep] = useState(-1);
 
   // All sequencer state lives in refs so the scheduler closure never stales.
+  const isPlayingRef         = useRef(false);
   const onEvolveRef          = useRef(onEvolve);
   const currentSectionRef    = useRef(currentSectionName);
   const lastEvolvBarRef      = useRef(-1);
-  const nextBeatTimeRef = useRef(0); // AudioContext time of the next step
-  const scheduledRef   = useRef([]); // [{step, time}] for UI sync
+  const nextBeatTimeRef      = useRef(0);
+  const scheduledRef         = useRef([]);
 
   // Mirror all props into refs so the closure always reads current values.
   const patternsRef    = useRef(patterns);
