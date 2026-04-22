@@ -200,29 +200,40 @@ export const mkNotes = (d = 'C2') =>
   Array.from({ length: MAX_STEPS }, () => d);
 
 // ─── MUSIC GENERATION ENGINE ──────────────────────────────────────────────────
+// ─── MUSIC GENERATION ENGINE ──────────────────────────────────────────────────
+
 export function chordNotes(chord, pool) {
   const n = pool.length;
   return [pool[chord.r % n], pool[chord.t % n], pool[chord.f % n]].filter(Boolean);
 }
 
-export function voiceLead(cur, pool) {
+// voiceLead: move to nearest chord tone with contrary motion bias.
+export function voiceLead(cur, pool, lastDir = 0) {
   if (!pool.length) return cur;
   const i = pool.indexOf(cur);
   if (i === -1) return pool[Math.floor(rnd() * pool.length)];
+  const sorted = pool
+    .map((n, idx) => ({ n, dist: Math.abs(idx - i), idx }))
+    .sort((a, b) => a.dist - b.dist);
+  const nearest = sorted.slice(0, 3);
   const r = rnd();
-  if (r < 0.5) return pool[Math.min(i + 1, pool.length - 1)];
-  if (r < 0.78) return pool[Math.max(i - 1, 0)];
-  return pool[clamp(i + (rnd() < 0.5 ? 2 : -2), 0, pool.length - 1)];
+  if (lastDir > 0 && r < 0.6) {
+    const below = nearest.filter(x => x.idx < i);
+    if (below.length) return below[0].n;
+  }
+  if (lastDir < 0 && r < 0.6) {
+    const above = nearest.filter(x => x.idx > i);
+    if (above.length) return above[0].n;
+  }
+  return nearest[0]?.n ?? cur;
 }
 
 export function arp(notes, mode, step) {
   if (!notes || !notes.length) return 'C4';
   const n = notes.length;
   switch (mode) {
-    case 'up':
-      return notes[step % n];
-    case 'down':
-      return notes[n - 1 - (step % n)];
+    case 'up':     return notes[step % n];
+    case 'down':   return notes[n - 1 - (step % n)];
     case 'updown': {
       const p = Math.max(1, n * 2 - 2);
       const s = step % p;
@@ -232,92 +243,98 @@ export function arp(notes, mode, step) {
       const s = step % n;
       return s % 2 === 0 ? notes[Math.floor(s / 2)] : notes[n - 1 - Math.floor(s / 2)];
     }
-    default:
-      return notes[step % n];
+    default: return notes[step % n];
   }
 }
 
-export function velCurve(type, i, total, pw) {
-  const t = i / total;
-  switch (type) {
-    case 'rise':
-      return clamp(0.3 + t * 0.7 * pw, 0.2, 1);
-    case 'fall':
-      return clamp(0.95 - t * 0.6, 0.15, 1);
-    case 'accent':
-      return i % 4 === 0 ? clamp(0.88 + pw * 0.12, 0.65, 1) : clamp(0.48 + pw * 0.28, 0.25, 0.82);
-    case 'groove':
-      return i % 8 === 0 ? 0.95 : i % 4 === 0 ? 0.76 : i % 2 === 0 ? 0.6 : 0.42 + rnd() * 0.18;
-    case 'flat':
-      return clamp(0.55 + pw * 0.2, 0.38, 0.82);
-    default:
-      return clamp(0.45 + pw * 0.55, 0.28, 1);
+// ─── RHYTHMIC PHRASE TEMPLATES ────────────────────────────────────────────────
+const RHYTHMIC_PHRASES = {
+  bass_steady:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+  bass_groove:  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,1,0],
+  bass_sparse:  [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,1,0,0],
+  bass_push:    [1,0,1,0, 0,1,0,0, 1,0,1,0, 0,0,1,0],
+  bass_acid:    [1,1,0,1, 1,0,1,0, 1,1,0,0, 1,0,1,1],
+  synth_call:   [0,0,1,0, 0,1,0,0, 0,0,1,0, 1,0,0,1],
+  synth_offbeat:[0,1,0,1, 0,1,0,1, 0,1,0,1, 0,1,0,1],
+  synth_stab:   [0,0,0,1, 0,0,0,0, 0,0,0,1, 0,1,0,0],
+  synth_wave:   [0,1,0,0, 1,0,1,0, 0,1,0,0, 1,0,1,1],
+  synth_dense:  [0,1,1,0, 1,0,1,0, 0,1,1,0, 1,0,0,1],
+};
+
+function pickRhythmicPhrase(isCounterpoint, sectionName, genre) {
+  const bassPhrases = {
+    drop:'bass_groove', groove:'bass_groove', build:'bass_push',
+    tension:'bass_acid', break:'bass_sparse', intro:'bass_sparse',
+    outro:'bass_sparse', fill:'bass_groove',
+  };
+  const synthPhrases = {
+    drop:'synth_wave', groove:'synth_call', build:'synth_dense',
+    tension:'synth_offbeat', break:'synth_stab', intro:'synth_stab',
+    outro:'synth_stab', fill:'synth_dense',
+  };
+  if (!isCounterpoint) {
+    if (genre === 'acid') return 'bass_acid';
+    return bassPhrases[sectionName] || 'bass_groove';
   }
+  return synthPhrases[sectionName] || 'synth_call';
 }
 
 // ─── MELODIC PHRASE BUILDER ───────────────────────────────────────────────────
-//
-// Builds a line of `steps` notes with:
-//   - 8-note motif (double the previous 4) for more musical variety
-//   - Progressive variation: motif transforms slightly each time it repeats
-//   - Tension/resolution: penultimate chord → leading tone, first chord → root
-//   - Contrapuntal offset option: if isCounterpoint, hit off-beats vs the motif
-//   - Voice leading ±1-2 scale steps with chord-tone bias
-//   - Passing tones scaled by chaos parameter
-//   - Note lengths driven by section lenBias
-//
 export function buildMelodicLine(
   pool, chordProgression, steps, chaos, arpeMode, lenBias, startNote,
-  isCounterpoint = false,
+  isCounterpoint = false, sectionName = 'groove', genre = 'techno',
 ) {
-  const line     = mkNotes(pool[0]);
-  const lengths  = Array(steps).fill(1);
-  const chordLen = Math.max(1, Math.floor(steps / chordProgression.length));
+  const line      = mkNotes(pool[0]);
+  const lengths   = Array(steps).fill(1);
+  const chordLen  = Math.max(1, Math.floor(steps / chordProgression.length));
 
-  // ── Build 8-note motif ───────────────────────────────────────────────────────
   const firstPool = chordNotes(chordProgression[0], pool);
-  const startIdx  = startNote ? Math.max(0, pool.indexOf(startNote)) : 0;
-  let   prev      = pool[clamp(startIdx, 0, pool.length - 1)];
+  if (!firstPool.length) firstPool.push(pool[0]);
 
-  const MOTIF_LEN = 8;
-  const motif     = [];
+  const startIdx = startNote && pool.includes(startNote)
+    ? pool.indexOf(startNote)
+    : pool.indexOf(firstPool[0]);
+  const anchor = pool[clamp(startIdx, 0, pool.length - 1)];
 
-  for (let m = 0; m < MOTIF_LEN; m++) {
-    const r = rnd();
-    if (r < 0.08) {
-      // Rest (held) — keep prev
-      motif.push(prev);
-    } else if (r < 0.22) {
-      // Exact repeat
-      motif.push(prev);
-    } else if (r < 0.55) {
-      // Arp-based movement on chord tones
-      const arpNote = arp(firstPool, arpeMode, m);
-      const nearest = pool.reduce((best, n) =>
-        Math.abs(pool.indexOf(n) - pool.indexOf(arpNote)) <
-        Math.abs(pool.indexOf(best) - pool.indexOf(arpNote)) ? n : best
-      , firstPool[0] || pool[0]);
-      prev = nearest;
-      motif.push(nearest);
-    } else {
-      // Step-wise voice lead within first chord
-      const stepped = voiceLead(prev, firstPool);
-      prev = stepped;
-      motif.push(stepped);
+  // Build 4-note motif with a deliberate contour shape
+  const CONTOURS = ['rise', 'fall', 'arch', 'valley', 'step_up', 'step_down'];
+  const contour  = pick(CONTOURS);
+  const cn0      = chordNotes(chordProgression[0], pool);
+
+  const motif = [anchor];
+  for (let m = 1; m < 4; m++) {
+    const pi   = pool.indexOf(motif[m - 1]);
+    let target;
+    switch (contour) {
+      case 'rise':      target = pool[clamp(pi + m,     0, pool.length - 1)]; break;
+      case 'fall':      target = pool[clamp(pi - m,     0, pool.length - 1)]; break;
+      case 'arch':      target = m < 2 ? pool[clamp(pi + m, 0, pool.length-1)] : pool[clamp(pi - (m-1), 0, pool.length-1)]; break;
+      case 'valley':    target = m < 2 ? pool[clamp(pi - m, 0, pool.length-1)] : pool[clamp(pi + (m-1), 0, pool.length-1)]; break;
+      case 'step_up':   target = pool[clamp(pi + 1,     0, pool.length - 1)]; break;
+      case 'step_down': target = pool[clamp(pi - 1,     0, pool.length - 1)]; break;
+      default:           target = cn0[m % cn0.length] || motif[m-1];
     }
+    // Snap to nearest chord tone
+    const snapped = cn0.length
+      ? cn0.reduce((best, n) => Math.abs(pool.indexOf(n)-pool.indexOf(target)) < Math.abs(pool.indexOf(best)-pool.indexOf(target)) ? n : best, cn0[0])
+      : target;
+    motif.push(snapped);
   }
 
-  // ── Build variation of motif (shift each note ±1 scale degree) ────────────
-  // Used on second and subsequent repetitions of the motif for development.
-  const motifVariant = motif.map(n => {
-    const idx = pool.indexOf(n);
-    if (idx === -1) return n;
-    const delta = rnd() < 0.5 ? 1 : -1;
-    return pool[clamp(idx + delta, 0, pool.length - 1)];
+  // Inverted motif for development (contour flipped)
+  const anchorIdx = pool.indexOf(anchor);
+  const motifInv  = motif.map(n => {
+    const delta = pool.indexOf(n) - anchorIdx;
+    return pool[clamp(anchorIdx - delta, 0, pool.length - 1)];
   });
 
-  let lastNote     = motif[0] || pool[0];
-  let motifRepeat  = 0; // counts how many full motif cycles we've done
+  // Rhythmic phrase gate
+  const phraseKey = pickRhythmicPhrase(isCounterpoint, sectionName, genre);
+  const phrase    = RHYTHMIC_PHRASES[phraseKey];
+
+  let lastNote  = anchor;
+  let lastDir   = 0;
+  let motifCycle = 0;
 
   for (let i = 0; i < steps; i++) {
     const ci    = Math.floor(i / chordLen) % chordProgression.length;
@@ -325,72 +342,65 @@ export function buildMelodicLine(
     const cn    = chordNotes(chord, pool);
     if (!cn.length) { line[i] = lastNote; continue; }
 
-    // Track motif repetitions for progressive variation
-    if (i > 0 && i % MOTIF_LEN === 0) motifRepeat++;
-    const useVariant = motifRepeat >= 2 && rnd() < 0.5;
-    const activMotif = useVariant ? motifVariant : motif;
+    if (i > 0 && i % (4 * chordLen) === 0) motifCycle++;
+    const useInv  = motifCycle >= 2 && rnd() < 0.4;
+    const actMot  = useInv ? motifInv : motif;
+    const motifPos = Math.floor(i / Math.max(1, chordLen)) % 4;
 
-    // Contrapuntal offset: synth hits where bass doesn't and vice versa
-    const motifPos       = i % MOTIF_LEN;
-    const isMotifBeat    = motifPos % 2 === 0;
-    const contraSkip     = isCounterpoint && isMotifBeat && rnd() < 0.55;
+    const phrasePos = i % 16;
+    const gated     = phrase[phrasePos];
 
-    const isPreResolution = ci === chordProgression.length - 2;
-    const isResolution    = ci === 0 && i >= chordLen;
-
-    let note;
-    const r = rnd();
-
-    if (contraSkip) {
-      // In counterpoint mode, prefer off-beat positions — use voice lead
-      note = voiceLead(lastNote, cn);
-    } else if (isResolution && r < 0.65) {
-      // Resolution: move toward root of first chord
-      const root = chordNotes(chordProgression[0], pool)[0] || pool[0];
-      note = pool.reduce((best, n) =>
-        Math.abs(pool.indexOf(n) - pool.indexOf(root)) <
-        Math.abs(pool.indexOf(best) - pool.indexOf(root)) ? n : best
-      , lastNote);
-    } else if (isPreResolution && r < 0.50) {
-      // Tension: one step above resolution root (leading tone)
-      const resRoot = chordNotes(chordProgression[0], pool)[0] || pool[0];
-      const resIdx  = pool.indexOf(resRoot);
-      note = pool[clamp(resIdx + 1, 0, pool.length - 1)];
-    } else if (r < 0.60) {
-      // Motif (or variant) transposed to current chord
-      const motifNote = activMotif[motifPos];
-      note = cn.reduce((best, n) =>
-        Math.abs(pool.indexOf(n) - pool.indexOf(motifNote)) <
-        Math.abs(pool.indexOf(best) - pool.indexOf(motifNote)) ? n : best
-      , arp(cn, arpeMode, i));
-    } else if (r < 0.60 + chaos * 0.22) {
-      // Passing / chromatic (chaos-scaled)
-      note = pick(pool);
-    } else {
-      // Voice lead ±1-2 from last, staying on chord tone
-      note = voiceLead(lastNote, cn);
+    if (!gated && rnd() > chaos * 0.25) {
+      line[i]    = lastNote;
+      lengths[i] = Math.max(0.5, lenBias * 0.5);
+      continue;
     }
 
-    line[i]  = note;
-    lastNote = note;
+    // Transpose motif note to current chord
+    const motifNote   = actMot[motifPos];
+    const chordTarget = cn.reduce((best, n) =>
+      Math.abs(pool.indexOf(n) - pool.indexOf(motifNote)) <
+      Math.abs(pool.indexOf(best) - pool.indexOf(motifNote)) ? n : best
+    , cn[0]);
 
-    // Note lengths
+    const isFirstChord = ci === 0 && i > chordLen;
+    const isLastChord  = ci === chordProgression.length - 1;
+    const r = rnd();
+    let note;
+
+    if (isFirstChord && r < 0.50) {
+      note = voiceLead(lastNote, [cn[0]], lastDir);
+    } else if (isLastChord && r < 0.40) {
+      const rootIdx = pool.indexOf(cn0[0] || pool[0]);
+      const leading = pool[clamp(rootIdx + 1, 0, pool.length - 1)];
+      note = voiceLead(lastNote, [leading], lastDir);
+    } else if (r < 0.68) {
+      note = chordTarget;
+    } else if (r < 0.68 + chaos * 0.18) {
+      note = pick(pool);
+    } else {
+      note = voiceLead(lastNote, cn, lastDir);
+    }
+
+    const newIdx = pool.indexOf(note);
+    const oldIdx = pool.indexOf(lastNote);
+    lastDir  = newIdx > oldIdx ? 1 : newIdx < oldIdx ? -1 : 0;
+    lastNote = note;
+    line[i]  = note;
+
     const lr = rnd();
-    let   l  = lenBias;
-    if      (lr < 0.40) l = lenBias;
-    else if (lr < 0.60) l = lenBias * 2;
-    else if (lr < 0.78) l = Math.max(0.5, lenBias * 0.5);
-    else                l = Math.min(lenBias * 3, 8);
+    let l = lenBias;
+    if      (lr < 0.35) l = lenBias;
+    else if (lr < 0.58) l = lenBias * 1.5;
+    else if (lr < 0.78) l = Math.max(0.5, lenBias * 0.75);
+    else                l = Math.min(lenBias * 2.5, 6);
     lengths[i] = l;
   }
 
-  // Tile to MAX_STEPS
-  for (let i = steps; i < MAX_STEPS; i++) {
-    line[i] = line[i % Math.max(1, steps)];
-  }
-
+  for (let i = steps; i < MAX_STEPS; i++) line[i] = line[i % Math.max(1, steps)];
   return { line, lengths, lastNote };
 }
+
 
 export function buildSection(genre, sectionName, modeName, progression, arpeMode, prevBass, sectionIndex = 0) {
   const sec  = SECTIONS[sectionName] || SECTIONS.groove;
@@ -454,11 +464,12 @@ export function buildSection(genre, sectionName, modeName, progression, arpeMode
 
   const { line: bassLine, lengths: bassLengths, lastNote: lastBassNote } = buildMelodicLine(
     bp, progression, laneLen.bass, chaos, arpeMode, bassLb, prevBass,
+    false, sectionName, genre,
   );
 
   const { line: synthLine, lengths: synthLengths } = buildMelodicLine(
     sp, progression, laneLen.synth, chaos * 0.7, arpeMode, synthLb, null,
-    true, // counterpoint: synth prefers off-beats relative to bass motif
+    true, sectionName, genre,
   );
 
   const phraseW = [1, 0.75, 0.92, 0.68]; // phrase weight per 8-step segment
