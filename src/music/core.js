@@ -165,7 +165,7 @@ export const NOTE_FREQ = {
   C2: 65.41, Db2: 69.3, D2: 73.42, Eb2: 77.78, E2: 82.41, F2: 87.31, 'F#2': 92.5, G2: 98, Ab2: 103.83, A2: 110, Bb2: 116.54, B2: 123.47,
   C3: 130.81, Db3: 138.59, D3: 146.83, Eb3: 155.56, E3: 164.81, F3: 174.61, G3: 196, A3: 220, Bb3: 233.08, B3: 246.94,
   C4: 261.63, Db4: 277.18, D4: 293.66, Eb4: 311.13, E4: 329.63, F4: 349.23, 'F#4': 370, G4: 392, Ab4: 415.3, A4: 440, Bb4: 466.16, B4: 493.88,
-  C5: 523.25, Db5: 554.37, D5: 587.33, Eb5: 622.25, F5: 698.46, G5: 783.99, A5: 880,
+  C5: 523.25, Db5: 554.37, D5: 587.33, Eb5: 622.25, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880,
 };
 
 export const NOTE_MIDI = {
@@ -402,16 +402,23 @@ export function buildMelodicLine(
 }
 
 
+// ─── VELOCITY CURVE ───────────────────────────────────────────────────────────
+// Maps section velocity style to a per-step gain multiplier.
+function velCurve(style, step, totalSteps, phraseWeight = 1) {
+  const pos = step / Math.max(1, totalSteps);
+  switch (style) {
+    case 'rise':   return clamp(0.45 + pos * 0.55, 0.3, 1.0) * phraseWeight;
+    case 'fall':   return clamp(1.0  - pos * 0.55, 0.3, 1.0) * phraseWeight;
+    case 'accent': return (step % 4 === 0 ? 1.0 : 0.62) * phraseWeight;
+    case 'groove': return (step % 8 === 0 ? 1.0 : step % 4 === 0 ? 0.78 : 0.55) * phraseWeight;
+    case 'flat':   return 0.55 * phraseWeight;
+    default:       return 0.72 * phraseWeight;
+  }
+}
+
 export function buildSection(genre, sectionName, modeName, progression, arpeMode, prevBass, sectionIndex = 0) {
   const sec  = SECTIONS[sectionName] || SECTIONS.groove;
   const gd   = GENRES[genre];
-  const grooveName =
-    gd.density > 0.65 && gd.chaos > 0.4 ? 'bunker'
-    : gd.chaos > 0.6                     ? 'broken'
-    : gd.density < 0.4                   ? 'float'
-    :                                      'steady';
-
-  const groove  = GROOVE_MAPS[grooveName];
   const mode    = MODES[modeName] || MODES.minor;
   const density = gd.density;
   const chaos   = gd.chaos;
